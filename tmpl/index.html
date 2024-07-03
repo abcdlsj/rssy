@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>RSSy</title>
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/water.css@2/out/water.css"
+    />
+    <link rel="shortcut icon" type="image/x-icon" href="favicon.ico" />
+    <style>
+      body {
+        font-family: "gg sans Normal", ui-sans-serif, system-ui, -apple-system;
+      }
+    </style>
+    <script
+      src="https://challenges.cloudflare.com/turnstile/v0/api.js"
+      async
+      defer
+    ></script>
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css"
+      media="(prefers-color-scheme: dark)"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/mono-blue.min.css"
+      media="(prefers-color-scheme: light), (prefers-color-scheme: no-preference)"
+    />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    <script>
+      hljs.highlightAll();
+    </script>
+  </head>
+  <body>
+    <h1>RSSY</h1>
+    <p>Input RSS URL</p>
+    <form method="POST" action="/article/add">
+      <label for="url">Enter URL:</label>
+      <input type="text" id="url" name="url" required>
+      <input type="submit" value="Add">
+      <div
+        class="cf-turnstile"
+        data-sitekey="{{.CFTurnstileSiteKey}}"
+        data-callback="turnstileCompleted"
+      ></div>
+    </form>
+    <hr />
+    <h2>Articles List</h2>
+    {{range $index, $element := .Articles}}
+      {{if lt $index 5}}
+        <div>
+          <a href="{{$element.Link}}">{{$element.Title}}</a>
+          <span>publish at: {{$element.PublishAt}}</span>
+        </div>
+      {{end}}
+    {{end}}
+  </body>
+</html>
