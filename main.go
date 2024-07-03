@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/rand"
@@ -17,6 +18,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/abcdlsj/cr"
 	"github.com/charmbracelet/log"
 	humanize "github.com/dustin/go-humanize"
 	"github.com/gin-gonic/gin"
@@ -420,10 +422,36 @@ func getSetFeed(url, email string) (int64, error) {
 	return feed.ID, nil
 }
 
+type Logger struct {
+	log    *log.Logger
+	prefix string
+}
+
+func (l *Logger) LogMode(level logger.LogLevel) logger.Interface {
+	return l
+}
+
+func (l *Logger) Info(ctx context.Context, format string, v ...interface{}) {
+	l.log.Infof(l.prefix+format, v...)
+}
+
+func (l *Logger) Warn(ctx context.Context, format string, v ...interface{}) {
+	l.log.Warnf(l.prefix+format, v...)
+}
+
+func (l *Logger) Error(ctx context.Context, format string, v ...interface{}) {
+	l.log.Errorf(l.prefix+format, v...)
+}
+
+func (l *Logger) Trace(ctx context.Context, begin time.Time, fc func() (string, int64), err error) {
+	sql, rows := fc()
+	l.log.Infof(l.prefix+"|%s|rows:%d|error:%v|time:%s", cr.PLCyan(sql), rows, err, time.Since(begin))
+}
+
 func initDB(filepath string) {
 	db, err := gorm.Open(sqlite.Open(filepath), &gorm.Config{
 		DisableAutomaticPing: true,
-		Logger:               logger.Default.LogMode(logger.Info),
+		Logger:               &Logger{log: log.Default(), prefix: "[db] "},
 	})
 
 	if err != nil {
