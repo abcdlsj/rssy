@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html>
+  <head>
+{{template "head" .}}
+  </head>
+  <body>
+    <div class="navbar">
+      <a href="/">Home</a>
+      <a href="/feed">Feeds</a>
+    </div>
+  <h1>Recently</h1>
+  {{range $idx, $article := .Articles}}
+  <div class="article-item">
+      <a href="/article/{{$article.Uid}}">{{$article.Title}}</a>
+      <span>(By: {{$article.Name}}</span>,
+      <span>At: {{timeformat $article.PublishAt}})</span>
+  </div>
+  {{end}}
+  </body>
+</html>

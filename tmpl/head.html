@@ -1,0 +1,77 @@
+{{define "head"}}
+<title>RSSy</title>
+<link
+  rel="stylesheet"
+  href="https://cdn.jsdelivr.net/npm/water.css@2/out/water.css"
+/>
+<link rel="shortcut icon" type="image/x-icon" href="favicon.ico" />
+<style>
+  body {
+    font-family: "gg sans Normal", ui-sans-serif, system-ui, -apple-system;
+  }
+  .form-container {
+    display: flex;
+    align-items: center;
+  }
+  .form-container label {
+    margin-right: 10px;
+    font-size: 0.9em;
+  }
+  .form-container input[type="text"] {
+    width: 200px;
+    margin-right: 10px;
+    font-size: 0.9em;
+  }
+  .form-container input[type="submit"] {
+    font-size: 0.9em;
+  }
+  .navbar {
+    overflow: hidden;
+    margin-bottom: 20px;
+  }
+  .navbar a {
+    float: left;
+    display: block;
+    text-align: left;
+    padding: 10px 15px 10px 0px;
+    text-decoration: none;
+  }
+  .feed-item {
+    display: flex;
+    padding-bottom: 5px;
+    margin: 0;
+  }
+  .feed-title {
+    margin-right: 10px;
+  }
+  .delete-button {
+    background: none;
+    border: none;
+    cursor: pointer;
+    text-decoration: none;
+    padding: 0;
+  }
+  .article-item {
+    margin-bottom: 5px;
+  }
+</style>
+<script
+  src="https://challenges.cloudflare.com/turnstile/v0/api.js"
+  async
+  defer
+></script>
+<link
+  rel="stylesheet"
+  href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css"
+  media="(prefers-color-scheme: dark)"
+/>
+<link
+  rel="stylesheet"
+  href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/mono-blue.min.css"
+  media="(prefers-color-scheme: light), (prefers-color-scheme: no-preference)"
+/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script>
+  hljs.highlightAll();
+</script>
+{{end}}

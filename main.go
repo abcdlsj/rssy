@@ -51,16 +51,12 @@ var (
 
 	tmpl = template.Must(template.New("").Funcs(tmplFuncs).ParseFS(tmplFS, "tmpl/*.html"))
 
-	CFTurnstileURL = "https://challenges.cloudflare.com/turnstile/v0/siteverify"
-
-	port               = os.Getenv("PORT")
-	CFTurnstileSecret  = os.Getenv("CF_SECRET")
-	CFTurnstileSiteKey = os.Getenv("CF_SITEKEY")
-	GHClientID         = os.Getenv("GH_CLIENT_ID")
-	GHSecret           = os.Getenv("GH_SECRET")
-	SiteURL            = os.Getenv("SITE_URL")
-	DBPATH             = orenv("DBPATH", "rssy.db")
-	TimeFormat         = "2006-01-02 15:04:05"
+	port       = os.Getenv("PORT")
+	GHClientID = os.Getenv("GH_CLIENT_ID")
+	GHSecret   = os.Getenv("GH_SECRET")
+	SiteURL    = os.Getenv("SITE_URL")
+	DBPATH     = orenv("DBPATH", "rssy.db")
+	TimeFormat = "2006-01-02 15:04:05"
 
 	GHRedirectURL = fmt.Sprintf("https://github.com/login/oauth/authorize?client_id=%s&scope=user&redirect_uri=%s",
 		GHClientID, fmt.Sprintf("%s/login/callback", SiteURL))
@@ -121,15 +117,65 @@ func main() {
 		}
 
 		articles := getRecentlyArticles(email)
-		c.HTML(http.StatusOK, "index.html", gin.H{
-			"Articles":           articles,
-			"CFTurnstileSiteKey": CFTurnstileSiteKey,
+		c.HTML(http.StatusOK, "articles.html", gin.H{
+			"Articles": articles,
 		})
 	})
 
-	r.POST("/article/add", checklogin, func(c *gin.Context) {
+	r.GET("/feed", checklogin, func(c *gin.Context) {
+		email := c.GetString("email")
+
+		if email == "" {
+			c.String(http.StatusBadRequest, "invalid request")
+			return
+		}
+
+		feeds := getFeeds(email)
+		c.HTML(http.StatusOK, "feed.html", gin.H{
+			"Feeds": feeds,
+		})
+	})
+
+	r.GET("/feed/:id", checklogin, func(c *gin.Context) {
+		email := c.GetString("email")
+		id := c.Param("id")
+
+		if email == "" || id == "" {
+			c.String(http.StatusBadRequest, "invalid request")
+			return
+		}
+
+		feed := getFeed(id, email)
+
+		if feed.ID == 0 {
+			c.String(http.StatusNotFound, "feed not found")
+			return
+		}
+
+		articles := getFeedArticles(email, id)
+		c.HTML(http.StatusOK, "articles.html", gin.H{
+			"Articles": articles},
+		)
+	})
+
+	r.POST("/feed/delete/:id", checklogin, func(c *gin.Context) {
+		email := c.GetString("email")
+		id := c.Param("id")
+
+		if email == "" || id == "" {
+			c.String(http.StatusBadRequest, "invalid request")
+			return
+		}
+
+		deleteFeed(email, id)
+		c.Redirect(http.StatusFound, "/feed")
+	})
+
+	r.POST("/feed/add", checklogin, func(c *gin.Context) {
 		email := c.GetString("email")
 		feedURL := c.PostForm("url")
+
+		log.Infof("email: %s, feedURL: %s", email, feedURL)
 
 		if email == "" || feedURL == "" {
 			c.String(http.StatusBadRequest, "invalid request")
@@ -222,7 +268,7 @@ func addFeedAndCreateArticles(feedURL, email string) error {
 
 	defer fetchParseJob.AddJob(feedURL, email)
 
-	feedID, err := getSetFeed(feedURL, email)
+	feedID, err := getSetFeed(feedURL, email, feed.Title)
 	if err != nil {
 		return fmt.Errorf("could not set feed: %v", err)
 	}
@@ -400,14 +446,16 @@ type Article struct {
 type Feed struct {
 	ID       int64  `json:"id" gorm:"column:id"`
 	URL      string `json:"url" gorm:"column:url"`
+	Title    string `json:"title" gorm:"column:title"`
 	CreateAt int64  `json:"create_at" gorm:"column:create_at"`
 	Priority int    `json:"priority" gorm:"column:priority"`
 	Email    string `json:"email" gorm:"column:email"`
 }
 
-func getSetFeed(url, email string) (int64, error) {
+func getSetFeed(url, email, title string) (int64, error) {
 	feed := &Feed{
 		URL:      url,
+		Title:    title,
 		Email:    email,
 		CreateAt: time.Now().Unix(),
 		Priority: 1,
@@ -419,6 +467,14 @@ func getSetFeed(url, email string) (int64, error) {
 	}
 
 	return feed.ID, nil
+}
+
+func getFeed(id, email string) *Feed {
+	var feed Feed
+
+	globalDB.Where("id = ? and email = ?", id, email).First(&feed)
+
+	return &feed
 }
 
 type Logger struct {
@@ -475,6 +531,43 @@ func getRecentlyArticles(email string) []Article {
 	}
 
 	return articles
+}
+
+func getFeedArticles(email, feedID string) []Article {
+	articles := []Article{}
+
+	err := globalDB.Where("email = ? and feed_id = ? and read = false",
+		email, feedID).Order("publish_at desc").Find(&articles).Error
+	if err != nil {
+		log.Infof("could not get articles: %v", err)
+		return nil
+	}
+
+	return articles
+}
+
+func getFeeds(email string) []Feed {
+	feeds := []Feed{}
+
+	err := globalDB.Where("email = ?", email).Order("create_at desc").Find(&feeds).Error
+	if err != nil {
+		log.Infof("could not get feeds: %v", err)
+		return nil
+	}
+
+	return feeds
+}
+
+func deleteFeed(email, id string) {
+	err := globalDB.Where("email = ? AND id = ?", email, id).Delete(&Feed{}).Error
+	if err != nil {
+		log.Infof("could not delete feed: %v", err)
+	}
+
+	err = globalDB.Where("email = ? AND feed_id = ?", email, id).Delete(&Article{}).Error
+	if err != nil {
+		log.Infof("could not delete article: %v", err)
+	}
 }
 
 func encryptSession(session Session) (string, error) {
