@@ -8,22 +8,24 @@ import (
 	"embed"
 	"encoding/base64"
 	"encoding/json"
-	"flag"
 	"fmt"
 	"html/template"
 	"io"
-	"log"
 	"net/http"
 	"net/url"
 	"os"
+	"sync"
 	"time"
 
+	"github.com/charmbracelet/log"
+	humanize "github.com/dustin/go-humanize"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/mmcdole/gofeed"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
 )
 
 var (
@@ -33,14 +35,16 @@ var (
 	//go:embed assets/*
 	assetFs embed.FS
 
-	dbFile = "rssy.db"
-
 	tmplFuncs = template.FuncMap{
 		"truncate": func(content string, length int) string {
 			if len(content) <= length {
 				return content
 			}
 			return content[:length]
+		},
+
+		"timeformat": func(t int64) string {
+			return humanize.Time(time.Unix(t, 0))
 		},
 	}
 
@@ -54,6 +58,7 @@ var (
 	GHClientID         = os.Getenv("GH_CLIENT_ID")
 	GHSecret           = os.Getenv("GH_SECRET")
 	SiteURL            = os.Getenv("SITE_URL")
+	DBPATH             = orenv("DBPATH", "rssy.db")
 	TimeFormat         = "2006-01-02 15:04:05"
 
 	GHRedirectURL = fmt.Sprintf("https://github.com/login/oauth/authorize?client_id=%s&scope=user&redirect_uri=%s",
@@ -62,42 +67,59 @@ var (
 	CipherKey = []byte{}
 
 	globalDB *gorm.DB
+
+	fetchParseJob = FeedParseJob{
+		jobs: sync.Map{},
+		tk:   time.NewTicker(2 * time.Hour),
+	}
 )
 
 func randCipherKey() {
 	CipherKey = make([]byte, 32)
 	_, err := rand.Read(CipherKey[:])
 	if err != nil {
-		log.Panic(err)
+		log.Fatal(err)
 	}
 }
 
-func main() {
+func init() {
 	randCipherKey()
-
-	flag.StringVar(&dbFile, "db", dbFile, "database file")
-	flag.Parse()
-
-	initDB(dbFile)
+	initDB(DBPATH)
 
 	gin.SetMode(gin.ReleaseMode)
+}
+
+func main() {
 	r := gin.Default()
 
 	r.SetFuncMap(tmplFuncs)
 	r.SetHTMLTemplate(tmpl)
 
+	go func() {
+		fetchParseJob.Start()
+	}()
+
 	checklogin := func(c *gin.Context) {
-		session, err := checkRefreshGHStatus(c.Writer, c.Request)
+		session, err := checkRefreshGHStatus(c.Request)
 		if err != nil {
 			c.Redirect(http.StatusSeeOther, "/login")
 			return
 		}
 
-		c.Set("session", session)
+		c.Set("email", session.Email)
+
+		c.Next()
 	}
 
 	r.GET("/", checklogin, func(c *gin.Context) {
-		articles := getRecentlyArticles()
+		email := c.GetString("email")
+
+		if email == "" {
+			c.String(http.StatusBadRequest, "invalid request")
+			return
+		}
+
+		articles := getRecentlyArticles(email)
 		c.HTML(http.StatusOK, "index.html", gin.H{
 			"Articles":           articles,
 			"CFTurnstileSiteKey": CFTurnstileSiteKey,
@@ -105,24 +127,34 @@ func main() {
 	})
 
 	r.POST("/article/add", checklogin, func(c *gin.Context) {
-		session := c.MustGet("session").(*Session)
-
+		email := c.GetString("email")
 		feedURL := c.PostForm("url")
-		articles, err := AddFeed(feedURL, session.Email)
-		if err != nil {
-			c.String(http.StatusInternalServerError, "Failed to fetch feed")
+
+		if email == "" || feedURL == "" {
+			c.String(http.StatusBadRequest, "invalid request")
 			return
 		}
 
-		globalDB.CreateInBatches(articles, 10)
+		err := addFeedAndCreateArticles(feedURL, email)
+		if err != nil {
+			c.String(http.StatusInternalServerError, err.Error())
+			return
+		}
 
 		c.Redirect(http.StatusSeeOther, "/")
 	})
 
-	r.POST("/article/:uid", func(c *gin.Context) {
+	r.GET("/article/:uid", checklogin, func(c *gin.Context) {
 		uid := c.Param("uid")
-		readArticle(uid)
-		c.Redirect(http.StatusSeeOther, "/")
+		email := c.GetString("email")
+
+		itemLink, err := getReadArticle(uid, email)
+		if err != nil {
+			c.String(http.StatusInternalServerError, err.Error())
+			return
+		}
+
+		c.Redirect(http.StatusSeeOther, itemLink)
 	})
 
 	r.GET("/favicon.ico", func(c *gin.Context) {
@@ -144,7 +176,7 @@ func main() {
 		}
 
 		login, email := getGithubData(ak)
-		if login != "" {
+		if login == "" {
 			c.String(http.StatusInternalServerError, "<html><body><h1>Failed to login</h1></body></html>")
 			return
 		}
@@ -160,40 +192,67 @@ func main() {
 		c.Redirect(http.StatusSeeOther, "/")
 	})
 
-	log.Printf("Running on %s", SiteURL)
+	log.Infof("Running on %s", SiteURL)
 	r.Run(fmt.Sprintf(":%s", port))
 }
 
-func AddFeed(feedURL, email string) ([]*Article, error) {
+func getReadArticle(uid, email string) (string, error) {
+	article := Article{}
+
+	err := globalDB.Where("uid = ? and email = ?", uid, email).First(&article).Error
+	if err != nil {
+		return "", fmt.Errorf("could not get article: %v", err)
+	}
+
+	err = globalDB.Model(article).Where("uid = ? and email = ?", uid, email).Update("read", true).Error
+	if err != nil {
+		return "", fmt.Errorf("could not read article: %v", err)
+	}
+
+	return article.Link, nil
+}
+
+func addFeedAndCreateArticles(feedURL, email string) error {
 	fp := gofeed.NewParser()
 	feed, err := fp.ParseURL(feedURL)
 	if err != nil {
-		return nil, fmt.Errorf("could not fetch feed: %v", err)
+		return fmt.Errorf("could not fetch feed: %v", err)
 	}
+
+	defer fetchParseJob.AddJob(feedURL, email)
 
 	feedID, err := getSetFeed(feedURL, email)
 	if err != nil {
-		return nil, fmt.Errorf("could not set feed: %v", err)
+		return fmt.Errorf("could not set feed: %v", err)
 	}
 
-	var articles []*Article
+	articles := make([]*Article, 0, len(feed.Items))
 	for _, item := range feed.Items {
+		if !rssItemFilter(item, time.Hour*24*7) {
+			continue
+		}
+
 		articles = append(articles, &Article{
-			Uuid:      uuid.New().String(),
+			Uid:       uuid.New().String(),
 			Name:      feed.Title,
 			FeedID:    feedID,
+			Email:     email,
 			Title:     item.Title,
 			Link:      item.Link,
 			Read:      false,
 			Hide:      false,
 			Deleted:   false,
 			Content:   item.Content,
-			PublishAt: item.PublishedParsed.Format(TimeFormat),
+			PublishAt: item.PublishedParsed.Unix(),
 			CreateAt:  time.Now().Unix(),
 		})
 	}
 
-	return articles, nil
+	if err := globalDB.CreateInBatches(articles, 10).Error; err != nil {
+		return fmt.Errorf("could not create articles: %v", err)
+	}
+
+	return nil
 }
 
 type Session struct {
@@ -203,35 +262,14 @@ type Session struct {
 	Email  string `json:"email"`
 }
 
-func checkRefreshGHStatus(w http.ResponseWriter, r *http.Request) (*Session, error) {
+func checkRefreshGHStatus(r *http.Request) (*Session, error) {
 	session := getCookieSession(r)
 	if session == nil {
 		return nil, fmt.Errorf("browser session is nil")
 	}
 
-	log.Printf("get session: %+v", session)
 	if time.Now().Unix() > int64(session.Expire) {
-		if session.RK == "" {
-			return nil, fmt.Errorf("refresh token is empty")
-		}
-		ak, sk, expiresIn := getGithubAccessToken("", session.RK)
-		if ak == "" {
-			return nil, fmt.Errorf("failed to get access token")
-		}
-
-		login, email := getGithubData(ak)
-		if login != "" {
-			return nil, fmt.Errorf("failed to get github data")
-		}
-
-		session = &Session{
-			AK:     ak,
-			RK:     sk,
-			Expire: int(time.Now().Unix()) + expiresIn,
-			Email:  email,
-		}
-
-		setCookieSession(w, "s", *session)
+		return nil, fmt.Errorf("session expired")
 	}
 
 	return session, nil
@@ -245,7 +283,7 @@ func getCookieSession(r *http.Request) *Session {
 
 	session, err := decryptSession(s.Value)
 	if err != nil {
-		log.Printf("decrypt session error: %v", err)
+		log.Infof("decrypt session error: %v", err)
 		return nil
 	}
 
@@ -255,7 +293,7 @@ func getCookieSession(r *http.Request) *Session {
 func setCookieSession(w http.ResponseWriter, name string, session Session) {
 	encryptSess, err := encryptSession(session)
 	if err != nil {
-		log.Printf("encrypt session error: %v", err)
+		log.Infof("encrypt session error: %v", err)
 		return
 	}
 
@@ -266,7 +304,7 @@ func setCookieSession(w http.ResponseWriter, name string, session Session) {
 		Path:   "/",
 	}
 
-	log.Printf("set cookie: %s, session: %+v\n", cookie.String(), session)
+	log.Infof("set cookie: %s, session: %+v\n", cookie.String(), session)
 	http.SetCookie(w, &cookie)
 }
 
@@ -283,7 +321,7 @@ func getGithubAccessToken(code, rk string) (string, string, int) {
 
 	req, err := http.NewRequest("POST", "https://github.com/login/oauth/access_token", bytes.NewBuffer(rbody))
 	if err != nil {
-		log.Printf("Error: %s\n", err)
+		log.Infof("Error: %s\n", err)
 		return "", "", 0
 	}
 
@@ -292,7 +330,7 @@ func getGithubAccessToken(code, rk string) (string, string, int) {
 
 	resp, resperr := http.DefaultClient.Do(req)
 	if resperr != nil {
-		log.Printf("Error: %s\n", resperr)
+		log.Infof("Error: %s\n", resperr)
 		return "", "", 0
 	}
 
@@ -307,11 +345,10 @@ func getGithubAccessToken(code, rk string) (string, string, int) {
 
 	err = json.NewDecoder(resp.Body).Decode(&ghresp)
 	if err != nil {
-		log.Printf("Error: %s\n", err)
+		log.Infof("Error: %s\n", err)
 		return "", "", 0
 	}
 
-	log.Printf("Github: %+v", ghresp)
 	return ghresp.AccessToken, ghresp.RefreshToken, ghresp.ExpiresIn
 }
 
@@ -340,42 +377,42 @@ func getGithubData(accessToken string) (string, string) {
 		return "", ""
 	}
 
-	log.Printf("github data: %+v", ghresp)
+	log.Infof("github data: %+v", ghresp)
 	return ghresp.Login, ghresp.Email
 }
 
 type Article struct {
-	Uuid string `json:"uid" gorm:"column:id"`
-	Name string `json:"name" gorm:"column:name"`
-
-	FeedID int64 `json:"feed_id" gorm:"column:feed_id"`
-
-	Title string `json:"title" gorm:"column:title"`
-	Link  string `json:"link" gorm:"column:link"`
-
-	Read    bool `json:"read" gorm:"column:read"`
-	Hide    bool `json:"hide" gorm:"column:hide"`
-	Deleted bool `json:"deleted" gorm:"column:deleted"`
-
+	Uid       string `json:"uid" gorm:"column:uid"`
+	Name      string `json:"name" gorm:"column:name"`
+	FeedID    int64  `json:"feed_id" gorm:"column:feed_id"`
+	Email     string `json:"email" gorm:"column:email"`
+	Title     string `json:"title" gorm:"column:title"`
+	Link      string `json:"link" gorm:"column:link"`
+	Read      bool   `json:"read" gorm:"column:read"`
+	Hide      bool   `json:"hide" gorm:"column:hide"`
+	Deleted   bool   `json:"deleted" gorm:"column:deleted"`
 	CreateAt  int64  `json:"create_at" gorm:"column:create_at"`
-	PublishAt string `json:"publish_at" gorm:"column:publish_at"`
-
-	Content string `json:"content" gorm:"column:content"`
+	PublishAt int64  `json:"publish_at" gorm:"column:publish_at"`
+	Content   string `json:"content" gorm:"column:content"`
 }
 
 type Feed struct {
-	ID       int64  `json:"id" gorm:"column:id,primarykey"`
-	Site     string `json:"site" gorm:"column:site"`
+	ID       int64  `json:"id" gorm:"column:id"`
 	URL      string `json:"url" gorm:"column:url"`
 	CreateAt int64  `json:"create_at" gorm:"column:create_at"`
 	Priority int    `json:"priority" gorm:"column:priority"`
-	User     string `json:"user" gorm:"column:user"`
+	Email    string `json:"email" gorm:"column:email"`
 }
 
 func getSetFeed(url, email string) (int64, error) {
-	feed := &Feed{}
+	feed := &Feed{
+		URL:      url,
+		Email:    email,
+		CreateAt: time.Now().Unix(),
+		Priority: 1,
+	}
 
-	result := globalDB.Where("url = ? and user = ?", url, email).FirstOrCreate(feed)
+	result := globalDB.Where("url = ? and email = ?", url, email).FirstOrCreate(feed)
 	if result.Error != nil {
 		return 0, result.Error
 	}
@@ -386,12 +423,14 @@ func getSetFeed(url, email string) (int64, error) {
 func initDB(filepath string) {
 	db, err := gorm.Open(sqlite.Open(filepath), &gorm.Config{
 		DisableAutomaticPing: true,
+		Logger:               logger.Default.LogMode(logger.Info),
 	})
+
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	err = globalDB.AutoMigrate(&Article{}, &Feed{})
+	err = db.AutoMigrate(&Article{}, &Feed{})
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -399,17 +438,15 @@ func initDB(filepath string) {
 	globalDB = db
 }
 
-func readArticle(uid string) error {
-	return globalDB.Model(&Article{}).Where("uid = ?", uid).Update("read", true).Error
-}
+func getRecentlyArticles(email string) []Article {
+	articles := []Article{}
 
-func getRecentlyArticles() []Article {
-	var articles []Article
-	result := globalDB.Order("publish_at desc").Find(&articles)
-	if result.Error != nil {
-		log.Println(result.Error)
+	err := globalDB.Where("email = ? and read = false", email).Order("publish_at desc").Find(&articles).Error
+	if err != nil {
+		log.Infof("could not get articles: %v", err)
 		return nil
 	}
+
 	return articles
 }
 
@@ -508,4 +545,100 @@ func cfValidate(r *http.Request) bool {
 	err = json.NewDecoder(resp.Body).Decode(&cfresp)
 
 	return err != nil || cfresp.Success
+}
+
+func orenv(key string, fallback string) string {
+	if v, ok := os.LookupEnv(key); ok {
+		return v
+	}
+
+	return fallback
+}
+
+func rssItemFilter(item *gofeed.Item, dur time.Duration) bool {
+	return item.PublishedParsed.Unix() > time.Now().Add(-dur).Unix()
+}
+
+type FeedParseJob struct {
+	jobs sync.Map
+	tk   *time.Ticker
+}
+
+type fetchJob struct {
+	feedURL       string
+	email         string
+	lastFetchedAt time.Time
+}
+
+func (t *FeedParseJob) Start() {
+	log.Infof("start feed parse job")
+	for range t.tk.C {
+		log.Infof("ticker to get feed, now: %v", time.Now())
+
+		newmap := sync.Map{}
+
+		t.jobs.Range(func(key, value interface{}) bool {
+			job := value.(fetchJob)
+
+			fp := gofeed.NewParser()
+			feed, err := fp.ParseURL(job.feedURL)
+			if err != nil {
+				log.Errorf("ticker to get feed error: %v", err)
+			}
+
+			feedFilter := func(item *gofeed.Item) bool {
+				return item.PublishedParsed.After(job.lastFetchedAt)
+			}
+
+			articles := make([]*Article, 0, len(feed.Items))
+
+			for _, item := range feed.Items {
+				if !feedFilter(item) {
+					continue
+				}
+
+				articles = append(articles, &Article{
+					Uid:       uuid.New().String(),
+					Name:      feed.Title,
+					FeedID:    0,
+					Email:     job.email,
+					Title:     item.Title,
+					Link:      item.Link,
+					Read:      false,
+					Hide:      false,
+					Deleted:   false,
+					Content:   item.Content,
+					PublishAt: item.PublishedParsed.Unix(),
+				})
+			}
+
+			if err := globalDB.CreateInBatches(articles, 10).Error; err != nil {
+				log.Errorf("could not create articles: %v", err)
+			}
+
+			log.Infof("url:%s, email:%s, ticker fetched %d articles", job.feedURL, job.email, len(articles))
+
+			newmap.Store(key, fetchJob{
+				feedURL:       job.feedURL,
+				email:         job.email,
+				lastFetchedAt: time.Now(),
+			})
+
+			return true
+		})
+
+		t.jobs = newmap
+	}
+}
+
+func (t *FeedParseJob) Stop() {
+	t.tk.Stop()
+}
+
+func (t *FeedParseJob) AddJob(feedURL, email string) {
+	t.jobs.Store(email+"-"+feedURL, fetchJob{
+		feedURL:       feedURL,
+		email:         email,
+		lastFetchedAt: time.Now(),
+	})
 }

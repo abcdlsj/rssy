@@ -37,23 +37,21 @@
     <p>Input RSS URL</p>
     <form method="POST" action="/article/add">
       <label for="url">Enter URL:</label>
-      <input type="text" id="url" name="url" required>
-      <input type="submit" value="Add">
-      <div
+      <input type="text" id="url" name="url" required />
+      <input type="submit" value="Add" />
+      <!-- <div
         class="cf-turnstile"
         data-sitekey="{{.CFTurnstileSiteKey}}"
         data-callback="turnstileCompleted"
-      ></div>
+      ></div> -->
     </form>
     <hr />
-    <h2>Articles List</h2>
-    {{range $index, $element := .Articles}}
-      {{if lt $index 5}}
-        <div>
-          <a href="{{$element.Link}}">{{$element.Title}}</a>
-          <span>publish at: {{$element.PublishAt}}</span>
-        </div>
-      {{end}}
+    <h2>Articles</h2>
+    {{range $idx, $article := .Articles}}
+    <div>
+      <a href="/article/{{$article.Uid}}">{{$article.Title}}</a>
+      <span>(By: {{$article.Name}}</span>, <span>At: {{timeformat $article.PublishAt}})</span>
+    </div>
     {{end}}
   </body>
 </html>
