@@ -445,13 +445,13 @@ func (l *Logger) Error(ctx context.Context, format string, v ...interface{}) {
 
 func (l *Logger) Trace(ctx context.Context, begin time.Time, fc func() (string, int64), err error) {
 	sql, rows := fc()
-	l.log.Infof(l.prefix+"|%s|rows:%d|error:%v|time:%s", cr.PLCyan(sql), rows, err, time.Since(begin))
+	l.log.Infof(l.prefix+"%s|rows:%d|error:%v|time:%s", cr.PLCyan(sql), rows, err, time.Since(begin))
 }
 
 func initDB(filepath string) {
 	db, err := gorm.Open(sqlite.Open(filepath), &gorm.Config{
 		DisableAutomaticPing: true,
-		Logger:               &Logger{log: log.Default(), prefix: "[db] "},
+		Logger:               &Logger{log: log.Default(), prefix: ""},
 	})
 
 	if err != nil {

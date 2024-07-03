@@ -11,6 +11,26 @@
       body {
         font-family: "gg sans Normal", ui-sans-serif, system-ui, -apple-system;
       }
+
+      .form-container {
+        display: flex;
+        align-items: center;
+      }
+
+      .form-container label {
+        margin-right: 10px;
+        font-size: 0.9em;
+      }
+
+      .form-container input[type="text"] {
+        width: 200px;
+        margin-right: 10px;
+        font-size: 0.9em;
+      }
+
+      .form-container input[type="submit"] {
+        font-size: 0.9em;
+      }
     </style>
     <script
       src="https://challenges.cloudflare.com/turnstile/v0/api.js"
@@ -34,8 +54,7 @@
   </head>
   <body>
     <h1>RSSY</h1>
-    <p>Input RSS URL</p>
-    <form method="POST" action="/article/add">
+    <form method="POST" action="/article/add" class="form-container">
       <label for="url">Enter URL:</label>
       <input type="text" id="url" name="url" required />
       <input type="submit" value="Add" />
@@ -50,7 +69,8 @@
     {{range $idx, $article := .Articles}}
     <div>
       <a href="/article/{{$article.Uid}}">{{$article.Title}}</a>
-      <span>(By: {{$article.Name}}</span>, <span>At: {{timeformat $article.PublishAt}})</span>
+      <span>(By: {{$article.Name}}</span>,
+      <span>At: {{timeformat $article.PublishAt}})</span>
     </div>
     {{end}}
   </body>

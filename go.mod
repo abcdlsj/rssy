@@ -3,6 +3,9 @@ module github.com/abcdlsj/rssy
 go 1.20
 
 require (
+	github.com/abcdlsj/cr v0.0.0-20231027232524-5ddc4e89d245
+	github.com/charmbracelet/log v0.4.0
+	github.com/dustin/go-humanize v1.0.1
 	github.com/gin-gonic/gin v1.10.0
 	github.com/google/uuid v1.4.0
 	github.com/mattn/go-sqlite3 v1.14.18
@@ -13,16 +16,13 @@ require (
 
 require (
 	github.com/PuerkitoBio/goquery v1.8.0 // indirect
-	github.com/abcdlsj/cr v0.0.0-20231027232524-5ddc4e89d245 // indirect
 	github.com/andybalholm/cascadia v1.3.1 // indirect
 	github.com/aymanbagabas/go-osc52/v2 v2.0.1 // indirect
 	github.com/bytedance/sonic v1.11.6 // indirect
 	github.com/bytedance/sonic/loader v0.1.1 // indirect
 	github.com/charmbracelet/lipgloss v0.10.0 // indirect
-	github.com/charmbracelet/log v0.4.0 // indirect
 	github.com/cloudwego/base64x v0.1.4 // indirect
 	github.com/cloudwego/iasm v0.2.0 // indirect
-	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/gabriel-vasile/mimetype v1.4.3 // indirect
 	github.com/gin-contrib/sse v0.1.0 // indirect
 	github.com/go-logfmt/logfmt v0.6.0 // indirect
