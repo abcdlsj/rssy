@@ -13,7 +13,6 @@ import (
 	"html/template"
 	"io"
 	"net/http"
-	"net/url"
 	"os"
 	"sync"
 	"time"
@@ -543,36 +542,6 @@ func decryptStr(str string) ([]byte, error) {
 	stream.XORKeyStream(cipherText, cipherText)
 
 	return cipherText, nil
-}
-
-func cfValidate(r *http.Request) bool {
-	token := r.Form.Get("cf-turnstile-response")
-	ip := r.Header.Get("CF-Connecting-IP")
-
-	if token == "" || ip == "" {
-		return false
-	}
-
-	form := url.Values{}
-	form.Set("secret", CFTurnstileSecret)
-	form.Set("response", token)
-	form.Set("remoteip", ip)
-	idempotencyKey := uuid.New().String()
-	form.Set("idempotency_key", idempotencyKey)
-
-	resp, err := http.PostForm(CFTurnstileURL, form)
-	if err != nil {
-		return false
-	}
-
-	type CFTurnstileResponse struct {
-		Success bool `json:"success"`
-	}
-
-	var cfresp CFTurnstileResponse
-	err = json.NewDecoder(resp.Body).Decode(&cfresp)
-
-	return err != nil || cfresp.Success
 }
 
 func orenv(key string, fallback string) string {
