@@ -47,6 +47,10 @@ var (
 		"timeformat": func(t int64) string {
 			return humanize.Time(time.Unix(t, 0))
 		},
+
+		"colortext": func(content string, color string) string {
+			return fmt.Sprintf(`<span style="color: %s">%s</span>`, color, content)
+		},
 	}
 
 	tmpl = template.Must(template.New("").Funcs(tmplFuncs).ParseFS(tmplFS, "tmpl/*.html"))
@@ -67,7 +71,7 @@ var (
 
 	fetchParseJob = FeedParseJob{
 		emails: []string{"github@songjian.li"},
-		tk:     time.NewTicker(1 * time.Minute),
+		tk:     time.NewTicker(30 * time.Minute),
 	}
 )
 
@@ -739,19 +743,23 @@ func (t *FeedParseJob) Start() {
 		feeds := getEmailsFeeds(t.emails)
 
 		for _, feedItem := range feeds {
+			if time.Now().Before(time.Unix(feedItem.LastFetchedAt+3600, 0)) {
+				continue
+			}
+
 			fp := gofeed.NewParser()
 
 			feed, err := fp.ParseURL(feedItem.URL)
 			if err != nil {
 				log.Errorf("ticker to get feed error: %v", err)
-				continue
+				feed = &gofeed.Feed{}
 			}
 
 			feedFilter := func(item *gofeed.Item) bool {
 				if feedItem.LastFetchedAt == 0 {
 					return rssItemTimeFilter(item, time.Hour*24*7)
 				}
-				return item.PublishedParsed.After(time.Unix(feedItem.LastFetchedAt+60*60, 0))
+				return item.PublishedParsed.After(time.Unix(feedItem.LastFetchedAt, 0))
 			}
 
 			articles := make([]*Article, 0, len(feed.Items))
