@@ -782,7 +782,7 @@ func (t *FeedParseJob) Start() {
 				articles = append(articles, &Article{
 					Uid:       uuid.New().String(),
 					Name:      feed.Title,
-					FeedID:    0,
+					FeedID:    feedItem.ID,
 					Email:     feedItem.Email,
 					Title:     item.Title,
 					Link:      item.Link,
