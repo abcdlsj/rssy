@@ -24,6 +24,7 @@ import (
 	"github.com/google/uuid"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/mmcdole/gofeed"
+	"gorm.io/driver/postgres"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
@@ -59,7 +60,8 @@ var (
 	GHClientID = os.Getenv("GH_CLIENT_ID")
 	GHSecret   = os.Getenv("GH_SECRET")
 	SiteURL    = os.Getenv("SITE_URL")
-	DBPATH     = orenv("DBPATH", "rssy.db")
+	DB         = orenv("DB", "rssy.db")
+	PG         = os.Getenv("PG") == "true"
 	TimeFormat = "2006-01-02 15:04:05"
 
 	GHRedirectURL = fmt.Sprintf("https://github.com/login/oauth/authorize?client_id=%s&scope=user&redirect_uri=%s",
@@ -85,7 +87,7 @@ func randCipherKey() {
 
 func init() {
 	randCipherKey()
-	initDB(DBPATH)
+	initDB()
 
 	gin.SetMode(gin.ReleaseMode)
 }
@@ -572,8 +574,16 @@ func (l *Logger) Trace(ctx context.Context, begin time.Time, fc func() (string, 
 	l.log.Infof(l.prefix+"%s|rows:%d|error:%v|time:%s", cr.PLCyan(sql), rows, err, time.Since(begin))
 }
 
-func initDB(filepath string) {
-	db, err := gorm.Open(sqlite.Open(filepath), &gorm.Config{
+func initDB() {
+	var dialer gorm.Dialector
+
+	if PG {
+		dialer = postgres.Open(DB)
+	} else {
+		dialer = sqlite.Open(DB)
+	}
+
+	db, err := gorm.Open(dialer, &gorm.Config{
 		DisableAutomaticPing: true,
 		Logger:               &Logger{log: log.Default(), prefix: ""},
 	})
