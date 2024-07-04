@@ -125,6 +125,7 @@ func main() {
 		articles := getRecentlyArticles(email)
 		c.HTML(http.StatusOK, "articles.html", gin.H{
 			"Articles": articles,
+			"SiteURL":  SiteURL,
 		})
 	})
 
@@ -138,7 +139,8 @@ func main() {
 
 		feeds := getFeeds(email)
 		c.HTML(http.StatusOK, "feed.html", gin.H{
-			"Feeds": feeds,
+			"Feeds":   feeds,
+			"SiteURL": SiteURL,
 		})
 	})
 
@@ -160,8 +162,9 @@ func main() {
 
 		articles := getFeedArticles(email, id)
 		c.HTML(http.StatusOK, "articles.html", gin.H{
-			"Articles": articles},
-		)
+			"Articles": articles,
+			"SiteURL":  SiteURL,
+		})
 	})
 
 	r.POST("/feed/delete/:id", checklogin, func(c *gin.Context) {
