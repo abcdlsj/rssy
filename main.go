@@ -9,12 +9,12 @@ import (
 	"embed"
 	"encoding/base64"
 	"encoding/json"
+	"encoding/xml"
 	"fmt"
 	"html/template"
 	"io"
 	"net/http"
 	"os"
-	"sync"
 	"time"
 
 	"github.com/abcdlsj/cr"
@@ -66,8 +66,8 @@ var (
 	globalDB *gorm.DB
 
 	fetchParseJob = FeedParseJob{
-		jobs: sync.Map{},
-		tk:   time.NewTicker(2 * time.Hour),
+		emails: []string{"github@songjian.li"},
+		tk:     time.NewTicker(1 * time.Minute),
 	}
 )
 
@@ -191,6 +191,71 @@ func main() {
 		c.Redirect(http.StatusSeeOther, "/")
 	})
 
+	r.POST("/feed/import", checklogin, func(c *gin.Context) {
+		email := c.GetString("email")
+		if email == "" {
+			c.String(http.StatusBadRequest, "invalid request")
+			return
+		}
+
+		file, _, err := c.Request.FormFile("opml")
+		if err != nil {
+			c.String(http.StatusBadRequest, "file upload error: %v", err)
+			return
+		}
+		defer file.Close()
+
+		bytes, err := io.ReadAll(file)
+		if err != nil {
+			c.String(http.StatusInternalServerError, "file read error: %v", err)
+			return
+		}
+
+		opml, err := parseOPML(bytes)
+		if err != nil {
+			c.String(http.StatusInternalServerError, "file parse error: %v", err)
+			return
+		}
+
+		for _, outline := range opml.Body.Outlines {
+			if len(outline.Outlines) != 0 {
+				for _, subOutline := range outline.Outlines {
+					if subOutline.Type != "rss" {
+						continue
+					}
+
+					getSetFeed(subOutline.XMLURL, email, subOutline.Text, 0)
+				}
+			}
+
+			if outline.Type == "rss" {
+				getSetFeed(outline.XMLURL, email, outline.Text, 0)
+			}
+		}
+
+		c.Redirect(http.StatusFound, "/feed")
+	})
+
+	r.GET("/feed/export", checklogin, func(c *gin.Context) {
+		email := c.GetString("email")
+		if email == "" {
+			c.String(http.StatusBadRequest, "invalid request")
+			return
+		}
+
+		var feeds []Feed
+		globalDB.Where("email = ?", email).Find(&feeds)
+
+		output, err := exportOPML(feeds)
+		if err != nil {
+			c.String(http.StatusInternalServerError, err.Error())
+			return
+		}
+
+		c.Header("Content-Disposition", "attachment; filename=feeds.opml")
+		c.Data(http.StatusOK, "application/xml", output)
+	})
+
 	r.GET("/article/:uid", checklogin, func(c *gin.Context) {
 		uid := c.Param("uid")
 		email := c.GetString("email")
@@ -266,16 +331,14 @@ func addFeedAndCreateArticles(feedURL, email string) error {
 		return fmt.Errorf("could not fetch feed: %v", err)
 	}
 
-	defer fetchParseJob.AddJob(feedURL, email)
-
-	feedID, err := getSetFeed(feedURL, email, feed.Title)
+	feedID, err := getSetFeed(feedURL, email, feed.Title, time.Now().Unix())
 	if err != nil {
 		return fmt.Errorf("could not set feed: %v", err)
 	}
 
 	articles := make([]*Article, 0, len(feed.Items))
 	for _, item := range feed.Items {
-		if !rssItemFilter(item, time.Hour*24*7) {
+		if !rssItemTimeFilter(item, time.Hour*24*7) {
 			continue
 		}
 
@@ -444,21 +507,23 @@ type Article struct {
 }
 
 type Feed struct {
-	ID       int64  `json:"id" gorm:"column:id"`
-	URL      string `json:"url" gorm:"column:url"`
-	Title    string `json:"title" gorm:"column:title"`
-	CreateAt int64  `json:"create_at" gorm:"column:create_at"`
-	Priority int    `json:"priority" gorm:"column:priority"`
-	Email    string `json:"email" gorm:"column:email"`
+	ID            int64  `json:"id" gorm:"column:id"`
+	URL           string `json:"url" gorm:"column:url"`
+	Title         string `json:"title" gorm:"column:title"`
+	CreateAt      int64  `json:"create_at" gorm:"column:create_at"`
+	Priority      int    `json:"priority" gorm:"column:priority"`
+	LastFetchedAt int64  `json:"last_fetched_at" gorm:"column:last_fetched_at"`
+	Email         string `json:"email" gorm:"column:email"`
 }
 
-func getSetFeed(url, email, title string) (int64, error) {
+func getSetFeed(url, email, title string, lastFetchedAt int64) (int64, error) {
 	feed := &Feed{
-		URL:      url,
-		Title:    title,
-		Email:    email,
-		CreateAt: time.Now().Unix(),
-		Priority: 1,
+		URL:           url,
+		Title:         title,
+		Email:         email,
+		CreateAt:      time.Now().Unix(),
+		Priority:      1,
+		LastFetchedAt: lastFetchedAt,
 	}
 
 	result := globalDB.Where("url = ? and email = ?", url, email).FirstOrCreate(feed)
@@ -558,6 +623,18 @@ func getFeeds(email string) []Feed {
 	return feeds
 }
 
+func getEmailsFeeds(emails []string) []Feed {
+	feeds := []Feed{}
+
+	err := globalDB.Where("email in ?", emails).Order("create_at desc").Find(&feeds).Error
+	if err != nil {
+		log.Infof("could not get feeds: %v", err)
+		return nil
+	}
+
+	return feeds
+}
+
 func deleteFeed(email, id string) {
 	err := globalDB.Where("email = ? AND id = ?", email, id).Delete(&Feed{}).Error
 	if err != nil {
@@ -645,19 +722,13 @@ func orenv(key string, fallback string) string {
 	return fallback
 }
 
-func rssItemFilter(item *gofeed.Item, dur time.Duration) bool {
+func rssItemTimeFilter(item *gofeed.Item, dur time.Duration) bool {
 	return item.PublishedParsed.Unix() > time.Now().Add(-dur).Unix()
 }
 
 type FeedParseJob struct {
-	jobs sync.Map
-	tk   *time.Ticker
-}
-
-type fetchJob struct {
-	feedURL       string
-	email         string
-	lastFetchedAt time.Time
+	tk     *time.Ticker
+	emails []string
 }
 
 func (t *FeedParseJob) Start() {
@@ -665,19 +736,22 @@ func (t *FeedParseJob) Start() {
 	for range t.tk.C {
 		log.Infof("ticker to get feed, now: %v", time.Now())
 
-		newmap := sync.Map{}
+		feeds := getEmailsFeeds(t.emails)
 
-		t.jobs.Range(func(key, value interface{}) bool {
-			job := value.(fetchJob)
-
+		for _, feedItem := range feeds {
 			fp := gofeed.NewParser()
-			feed, err := fp.ParseURL(job.feedURL)
+
+			feed, err := fp.ParseURL(feedItem.URL)
 			if err != nil {
 				log.Errorf("ticker to get feed error: %v", err)
+				continue
 			}
 
 			feedFilter := func(item *gofeed.Item) bool {
-				return item.PublishedParsed.After(job.lastFetchedAt)
+				if feedItem.LastFetchedAt == 0 {
+					return rssItemTimeFilter(item, time.Hour*24*7)
+				}
+				return item.PublishedParsed.After(time.Unix(feedItem.LastFetchedAt+60*60, 0))
 			}
 
 			articles := make([]*Article, 0, len(feed.Items))
@@ -691,7 +765,7 @@ func (t *FeedParseJob) Start() {
 					Uid:       uuid.New().String(),
 					Name:      feed.Title,
 					FeedID:    0,
-					Email:     job.email,
+					Email:     feedItem.Email,
 					Title:     item.Title,
 					Link:      item.Link,
 					Read:      false,
@@ -706,18 +780,11 @@ func (t *FeedParseJob) Start() {
 				log.Errorf("could not create articles: %v", err)
 			}
 
-			log.Infof("url:%s, email:%s, ticker fetched %d articles", job.feedURL, job.email, len(articles))
-
-			newmap.Store(key, fetchJob{
-				feedURL:       job.feedURL,
-				email:         job.email,
-				lastFetchedAt: time.Now(),
-			})
-
-			return true
-		})
-
-		t.jobs = newmap
+			if err := globalDB.Model(&Feed{ID: feedItem.ID}).
+				Update("last_fetched_at", time.Now().Unix()).Error; err != nil {
+				log.Errorf("could not update feed item: %v", err)
+			}
+		}
 	}
 }
 
@@ -725,10 +792,69 @@ func (t *FeedParseJob) Stop() {
 	t.tk.Stop()
 }
 
-func (t *FeedParseJob) AddJob(feedURL, email string) {
-	t.jobs.Store(email+"-"+feedURL, fetchJob{
-		feedURL:       feedURL,
-		email:         email,
-		lastFetchedAt: time.Now(),
-	})
+type OPML struct {
+	XMLName xml.Name `xml:"opml"`
+	Version string   `xml:"version,attr"`
+	Head    Head     `xml:"head"`
+	Body    Body     `xml:"body"`
+}
+
+type Head struct {
+	Title        string `xml:"title"`
+	DateCreated  string `xml:"dateCreated"`
+	DateModified string `xml:"dateModified"`
+}
+
+type Body struct {
+	Outlines []Outline `xml:"outline"`
+}
+
+type Outline struct {
+	Text     string    `xml:"text,attr"`
+	Type     string    `xml:"type,attr"`
+	XMLURL   string    `xml:"xmlUrl,attr"`
+	HTMLURL  string    `xml:"htmlUrl,attr,omitempty"`
+	Language string    `xml:"language,attr,omitempty"`
+	Title    string    `xml:"title,attr,omitempty"`
+	Outlines []Outline `xml:"outline"`
+}
+
+func parseOPML(data []byte) (*OPML, error) {
+	var opml OPML
+	if err := xml.Unmarshal(data, &opml); err != nil {
+		return nil, err
+	}
+
+	return &opml, nil
+}
+
+func exportOPML(feeds []Feed) ([]byte, error) {
+	outlines := make([]Outline, len(feeds))
+	for i, feed := range feeds {
+		outlines[i] = Outline{
+			Title:  feed.Title,
+			Text:   feed.Title,
+			Type:   "rss",
+			XMLURL: feed.URL,
+		}
+	}
+
+	opml := OPML{
+		Version: "2.0",
+		Head: Head{
+			Title:        "My Feeds",
+			DateCreated:  time.Now().Format(time.RFC1123Z),
+			DateModified: time.Now().Format(time.RFC1123Z),
+		},
+		Body: Body{
+			Outlines: outlines,
+		},
+	}
+
+	bytes, err := xml.MarshalIndent(opml, "", "  ")
+	if err != nil {
+		return nil, err
+	}
+
+	return bytes, nil
 }
