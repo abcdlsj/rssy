@@ -4,14 +4,14 @@
 
 `RSSy` is a RSS management site build by `Go` + `Template` + `GitHub OAuth`.
 
-It's can not read `RSS` content for now.
-
-BTW, I will implement this in the future.
-
-And will also implment `import/export` `opml` features.
+- Support `Import` `opml` file, and `Export` feeds to `opml`
+- Using `Github OAuth`
+- Support `Sqlite3` and `Postgres` by `Gorm`
+- Clean and modern design
 
 ## PNGs
 
-![articles page](image.png)
-
-![alt text](image-1.png)
+![home page](image.png)
+![feeds page](image-1.png)
+![feed page](image-3.png)
+![content page](image-2.png)
