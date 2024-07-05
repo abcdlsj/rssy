@@ -83,7 +83,7 @@ var (
 
 	fetchParseJob = FeedParseJob{
 		emails: []string{"github@songjian.li"},
-		tk:     time.NewTicker(1 * time.Minute),
+		tk:     time.NewTicker(30 * time.Minute),
 	}
 )
 
