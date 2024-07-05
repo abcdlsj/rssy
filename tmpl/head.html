@@ -7,7 +7,7 @@
 <link rel="shortcut icon" type="image/x-icon" href="{{.SiteURL}}/favicon.ico" />
 <style>
   body {
-    font-family: "gg sans Normal", ui-sans-serif, system-ui, -apple-system;
+    font-family: Avenir, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif
   }
   .form-container {
     display: flex;
@@ -44,31 +44,23 @@
   .feed-title {
     margin-right: 10px;
   }
-  .delete-button {
-    background: none;
-    border: none;
-    cursor: pointer;
-    text-decoration: none;
-    padding: 0;
-  }
-  .article-item {
-    margin-bottom: 5px;
-  }
   .import-export-container {
     display: flex;
     padding-bottom: 5px;
     margin: 0;
   }
   .import-button,
-  .export-button {
+  .export-button,
+  .delete-button,
+  .refresh-button {
     background: none;
     border: none;
     cursor: pointer;
     text-decoration: none;
     padding: 0;
+    padding-right: 5px;
   }
-  .import-button:hover,
-  .export-button:hover {
+  .import-button:hover {
     text-decoration: none;
   }
   .custom-file-upload {
@@ -78,13 +70,26 @@
     text-decoration: none;
     padding: 0;
   }
-
   .custom-file-upload:hover {
     text-decoration: none;
   }
-
   input[type="file"] {
     display: none;
+  }
+  .article-item {
+    margin-bottom: 7px;
+  }
+  .article-link {
+    font-weight: 500;
+  }
+  .article-info {
+    font-size: 0.9em;
+    font-weight: 300;
+  }
+  .article-feed {
+    font-size: 0.9em;
+    font-weight: 300;
+    text-decoration: none;
   }
 </style>
 <link

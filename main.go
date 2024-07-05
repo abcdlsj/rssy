@@ -64,29 +64,22 @@ var (
 	PG         = os.Getenv("PG") == "true"
 	TimeFormat = "2006-01-02 15:04:05"
 
+	autoMigrate = os.Getenv("AUTO_MIGRATE") == "true"
+
 	GHRedirectURL = fmt.Sprintf("https://github.com/login/oauth/authorize?client_id=%s&scope=user&redirect_uri=%s",
 		GHClientID, fmt.Sprintf("%s/login/callback", SiteURL))
 
-	CipherKey = []byte{}
+	CipherKey = []byte(orenv("CIPHER_KEY", "0b661f0874117724d1e50746c9fe65d9")) // 32
 
 	globalDB *gorm.DB
 
 	fetchParseJob = FeedParseJob{
 		emails: []string{"github@songjian.li"},
-		tk:     time.NewTicker(30 * time.Minute),
+		tk:     time.NewTicker(1 * time.Minute),
 	}
 )
 
-func randCipherKey() {
-	CipherKey = make([]byte, 32)
-	_, err := rand.Read(CipherKey[:])
-	if err != nil {
-		log.Fatal(err)
-	}
-}
-
 func init() {
-	randCipherKey()
 	initDB()
 
 	gin.SetMode(gin.ReleaseMode)
@@ -126,6 +119,7 @@ func main() {
 		c.HTML(http.StatusOK, "articles.html", gin.H{
 			"Articles": articles,
 			"SiteURL":  SiteURL,
+			"Headline": "Unreads",
 		})
 	})
 
@@ -162,8 +156,12 @@ func main() {
 
 		articles := getFeedArticles(email, id)
 		c.HTML(http.StatusOK, "articles.html", gin.H{
-			"Articles": articles,
-			"SiteURL":  SiteURL,
+			"Articles":       articles,
+			"SiteURL":        SiteURL,
+			"Headline":       feed.Title,
+			"DisplayRefresh": true,
+			"FeedID":         id,
+			"LastFetchedAt":  feed.LastFetchedAt,
 		})
 	})
 
@@ -178,6 +176,19 @@ func main() {
 
 		deleteFeed(email, id)
 		c.Redirect(http.StatusFound, "/feed")
+	})
+
+	r.POST("/feed/:id/refresh", checklogin, func(c *gin.Context) {
+		email := c.GetString("email")
+		id := c.Param("id")
+
+		if email == "" || id == "" {
+			c.String(http.StatusBadRequest, "invalid request")
+			return
+		}
+
+		refreshFeed(email, id)
+		c.Redirect(http.StatusFound, "/feed/"+id)
 	})
 
 	r.POST("/feed/add", checklogin, func(c *gin.Context) {
@@ -372,6 +383,56 @@ func addFeedAndCreateArticles(feedURL, email string) error {
 	}
 
 	return nil
+}
+
+func parseFeedAndSaveArticles(feedURL, email string, feedID, lastFetchedAt int64) ([]*Article, error) {
+	fp := gofeed.NewParser()
+
+	feed, err := fp.ParseURL(feedURL)
+	if err != nil {
+		log.Errorf("ticker to get feed error: %v", err)
+		feed = &gofeed.Feed{}
+	}
+
+	feedFilter := func(item *gofeed.Item) bool {
+		if lastFetchedAt == 0 {
+			return rssItemTimeFilter(item, time.Hour*24*7)
+		}
+		return item.PublishedParsed.After(time.Unix(lastFetchedAt, 0))
+	}
+
+	articles := make([]*Article, 0, len(feed.Items))
+
+	for _, item := range feed.Items {
+		if !feedFilter(item) {
+			continue
+		}
+
+		articles = append(articles, &Article{
+			Uid:       uuid.New().String(),
+			Name:      feed.Title,
+			FeedID:    feedID,
+			Email:     email,
+			Title:     item.Title,
+			Link:      item.Link,
+			Read:      false,
+			Hide:      false,
+			Deleted:   false,
+			Content:   item.Content,
+			PublishAt: item.PublishedParsed.Unix(),
+		})
+	}
+
+	if err := globalDB.CreateInBatches(articles, 10).Error; err != nil {
+		log.Errorf("could not create articles: %v", err)
+	}
+
+	if err := globalDB.Model(&Feed{ID: feedID}).
+		Update("last_fetched_at", time.Now().Unix()).Error; err != nil {
+		log.Errorf("could not update feed item: %v", err)
+	}
+
+	return articles, nil
 }
 
 type Session struct {
@@ -595,9 +656,11 @@ func initDB() {
 		log.Fatal(err)
 	}
 
-	err = db.AutoMigrate(&Article{}, &Feed{})
-	if err != nil {
-		log.Fatal(err)
+	if autoMigrate {
+		err = db.AutoMigrate(&Article{}, &Feed{})
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 
 	globalDB = db
@@ -662,6 +725,12 @@ func deleteFeed(email, id string) {
 	if err != nil {
 		log.Infof("could not delete article: %v", err)
 	}
+}
+
+func refreshFeed(email, id string) {
+	feed := getFeed(id, email)
+
+	parseFeedAndSaveArticles(feed.URL, feed.Email, feed.ID, feed.LastFetchedAt)
 }
 
 func encryptSession(session Session) (string, error) {
@@ -760,51 +829,7 @@ func (t *FeedParseJob) Start() {
 				continue
 			}
 
-			fp := gofeed.NewParser()
-
-			feed, err := fp.ParseURL(feedItem.URL)
-			if err != nil {
-				log.Errorf("ticker to get feed error: %v", err)
-				feed = &gofeed.Feed{}
-			}
-
-			feedFilter := func(item *gofeed.Item) bool {
-				if feedItem.LastFetchedAt == 0 {
-					return rssItemTimeFilter(item, time.Hour*24*7)
-				}
-				return item.PublishedParsed.After(time.Unix(feedItem.LastFetchedAt, 0))
-			}
-
-			articles := make([]*Article, 0, len(feed.Items))
-
-			for _, item := range feed.Items {
-				if !feedFilter(item) {
-					continue
-				}
-
-				articles = append(articles, &Article{
-					Uid:       uuid.New().String(),
-					Name:      feed.Title,
-					FeedID:    feedItem.ID,
-					Email:     feedItem.Email,
-					Title:     item.Title,
-					Link:      item.Link,
-					Read:      false,
-					Hide:      false,
-					Deleted:   false,
-					Content:   item.Content,
-					PublishAt: item.PublishedParsed.Unix(),
-				})
-			}
-
-			if err := globalDB.CreateInBatches(articles, 10).Error; err != nil {
-				log.Errorf("could not create articles: %v", err)
-			}
-
-			if err := globalDB.Model(&Feed{ID: feedItem.ID}).
-				Update("last_fetched_at", time.Now().Unix()).Error; err != nil {
-				log.Errorf("could not update feed item: %v", err)
-			}
+			parseFeedAndSaveArticles(feedItem.URL, feedItem.Email, feedItem.ID, feedItem.LastFetchedAt)
 		}
 	}
 }

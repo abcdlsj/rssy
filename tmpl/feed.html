@@ -21,7 +21,7 @@
     <h1>Feeds</h1>
     <div class="import-export-container">
       <form action="/feed/import" method="POST" enctype="multipart/form-data" name="fileForm">
-        <div id="importbtn" onclick="getFile()">(+import)</div>
+        <div id="importbtn" onclick="getFile()" class="import-button">(+import)</div>
         <div style="height: 0px; width: 0px; overflow: hidden">
           <input id="upfile" type="file" value="opml" name="opml" onchange="sub(this)" />
         </div>

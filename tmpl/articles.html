@@ -1,20 +1,46 @@
 <!DOCTYPE html>
 <html>
   <head>
-{{template "head" .}}
+    {{template "head" .}}
+    <script>
+      function refreshFeed(feedId) {
+        fetch(`/feed/${feedId}/refresh`, {
+          method: "POST",
+        })
+          .then((response) => {
+            if (response.ok) {
+              location.reload();
+            } else {
+              console.error("Refresh failed");
+            }
+          })
+          .catch((error) => {
+            console.error("Error:", error);
+          });
+      }
+    </script>
   </head>
   <body>
     <div class="navbar">
       <a href="/">Home</a>
       <a href="/feed">Feeds</a>
     </div>
-  <h1>Recently</h1>
-  {{range $idx, $article := .Articles}}
-  <div class="article-item">
-      <a href="/article/{{$article.Uid}}">{{$article.Title}}</a>
-      <span>(By: {{$article.Name}}</span>,
-      <span>At: {{timeformat $article.PublishAt}})</span>
-  </div>
-  {{end}}
+    <h1>{{.Headline}}</h1>
+    {{if .DisplayRefresh}}
+    <button class="refresh-button" onclick="refreshFeed({{.FeedID}});">
+      (+refresh)
+    </button>
+    <span class="refresh-info">Fetched at: {{timeformat .LastFetchedAt}}</span>
+    <hr />
+    {{else}}
+    <hr />
+    {{end}}
+    {{range $idx, $article := .Articles}}
+    <div class="article-item">
+      <a href="/article/{{$article.Uid}}" class="article-link">{{$article.Title}}</a>
+      <span>(By: </span><a class="article-feed" href="/feed/{{$article.FeedID}}">{{$article.Name}}</a>,
+      <span class="article-info">At: {{timeformat $article.PublishAt}})</span>
+    </div>
+    {{end}}
   </body>
 </html>
