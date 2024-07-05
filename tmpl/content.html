@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    {{template "head" .}}
+  </head>
+  <body>
+    <div class="navbar">
+      <a href="/">Home</a>
+      <a href="/feed">Feeds</a>
+    </div>
+    <div class="article-content">
+      <div class="article-title">{{.Title}}</div>
+      <div class="article-meta">
+        <span>At: {{timeformat .PublishAt}}</span>
+      </div>
+      <hr />
+      <div class="article-body">
+        {{.Content | safeHTML}}
+      </div>
+    </div>
+  </body>
+</html>

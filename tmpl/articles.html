@@ -38,8 +38,11 @@
     {{range $idx, $article := .Articles}}
     <div class="article-item">
       <a href="/article/{{$article.Uid}}" class="article-link">{{$article.Title}}</a>
-      <span>(By: </span><a class="article-feed" href="/feed/{{$article.FeedID}}">{{$article.Name}}</a>,
-      <span class="article-info">At: {{timeformat $article.PublishAt}})</span>
+      <span>(by: </span><a class="article-feed" href="/feed/{{$article.FeedID}}">{{$article.Name}}</a>,
+      <span class="article-info">at: {{timeformat $article.PublishAt}})</span>
+      {{if displayContentRead $article.Content}}
+      <a href="/article/{{$article.Uid}}/read">(+read)</a>
+      {{end}}
     </div>
     {{end}}
   </body>

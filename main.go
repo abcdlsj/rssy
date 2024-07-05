@@ -52,6 +52,14 @@ var (
 		"colortext": func(content string, color string) string {
 			return fmt.Sprintf(`<span style="color: %s">%s</span>`, color, content)
 		},
+
+		"safeHTML": func(content string) template.HTML {
+			return template.HTML(content)
+		},
+
+		"displayContentRead": func(content string) bool {
+			return len(content) >= 30
+		},
 	}
 
 	tmpl = template.Must(template.New("").Funcs(tmplFuncs).ParseFS(tmplFS, "tmpl/*.html"))
@@ -280,13 +288,29 @@ func main() {
 		uid := c.Param("uid")
 		email := c.GetString("email")
 
-		itemLink, err := getReadArticle(uid, email)
+		article, err := getReadArticle(uid, email)
 		if err != nil {
 			c.String(http.StatusInternalServerError, err.Error())
 			return
 		}
 
-		c.Redirect(http.StatusSeeOther, itemLink)
+		c.Redirect(http.StatusSeeOther, article.Link)
+	})
+
+	r.GET("/article/:uid/read", checklogin, func(c *gin.Context) {
+		uid := c.Param("uid")
+		email := c.GetString("email")
+
+		article, err := getReadArticle(uid, email)
+		if err != nil {
+			c.String(http.StatusNotFound, "Article not found")
+			return
+		}
+		c.HTML(http.StatusOK, "content.html", gin.H{
+			"Title":     article.Title,
+			"PublishAt": article.PublishAt,
+			"Content":   article.Content,
+		})
 	})
 
 	r.GET("/favicon.ico", func(c *gin.Context) {
@@ -328,20 +352,20 @@ func main() {
 	r.Run(fmt.Sprintf(":%s", port))
 }
 
-func getReadArticle(uid, email string) (string, error) {
+func getReadArticle(uid, email string) (Article, error) {
 	article := Article{}
 
 	err := globalDB.Where("uid = ? and email = ?", uid, email).First(&article).Error
 	if err != nil {
-		return "", fmt.Errorf("could not get article: %v", err)
+		return article, fmt.Errorf("could not get article: %v", err)
 	}
 
 	err = globalDB.Model(article).Where("uid = ? and email = ?", uid, email).Update("read", true).Error
 	if err != nil {
-		return "", fmt.Errorf("could not read article: %v", err)
+		return article, fmt.Errorf("could not read article: %v", err)
 	}
 
-	return article.Link, nil
+	return article, nil
 }
 
 func addFeedAndCreateArticles(feedURL, email string) error {
