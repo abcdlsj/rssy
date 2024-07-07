@@ -173,6 +173,7 @@ func main() {
 			"CheckboxValues": map[string]string{
 				"hide_unread": strconv.FormatBool(feed.HideUnread),
 			},
+			"HideCreateBy":  true,
 			"FeedID":        id,
 			"LastFetchedAt": feed.LastFetchedAt,
 		})
