@@ -460,9 +460,17 @@ func parseFeedAndSaveArticles(fd *Feed) ([]*Article, error) {
 	}
 
 	feedFilter := func(item *gofeed.Item) bool {
+		if item == nil {
+			return false
+		}
 		if fd.LastFetchedAt == 0 {
 			return rssItemTimeFilter(item, time.Hour*24*7)
 		}
+
+		if item.PublishedParsed == nil {
+			return false
+		}
+
 		return item.PublishedParsed.After(time.Unix(fd.LastFetchedAt, 0))
 	}
 
@@ -879,6 +887,10 @@ func orenv(key string, fallback string) string {
 }
 
 func rssItemTimeFilter(item *gofeed.Item, dur time.Duration) bool {
+	if item == nil || item.PublishedParsed == nil {
+		return false
+	}
+
 	return item.PublishedParsed.Unix() > time.Now().Add(-dur).Unix()
 }
 
@@ -896,6 +908,10 @@ func (t *FeedParseJob) Start() {
 
 		for _, feedItem := range feeds {
 			if time.Now().Before(time.Unix(feedItem.LastFetchedAt+3600, 0)) {
+				continue
+			}
+
+			if feedItem.ID == 0 {
 				continue
 			}
 
