@@ -27,9 +27,18 @@
     </div>
     <h1>{{.Headline}}</h1>
     {{if .DisplayRefresh}}
-    <button class="refresh-button" onclick="refreshFeed({{.FeedID}});">
-      (+refresh)
-    </button>
+    <div class="updatefeed-container">
+      <button class="refresh-button" onclick="refreshFeed({{.FeedID}});">
+        (+refresh)
+      </button>
+      {{if .DisplayCheckbox}}
+      <form method="POST" action="/feed/{{.FeedID}}/update" class="form-container">
+        <input type="submit" class="update-button" value="(+update)" />
+        <label for="hide_unread"> hide-unread</label>
+        <input type="checkbox" id="hide_unread" name="hide_unread" value="true" {{if eq .CheckboxValues.hide_unread "true"}}checked{{end}} />
+      </form>
+      {{end}}
+    </div>
     <span class="refresh-info">Fetched at: {{timeformat .LastFetchedAt}}</span>
     <hr />
     {{else}}

@@ -15,6 +15,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/abcdlsj/cr"
@@ -164,12 +165,16 @@ func main() {
 
 		articles := getFeedArticles(email, id)
 		c.HTML(http.StatusOK, "articles.html", gin.H{
-			"Articles":       articles,
-			"SiteURL":        SiteURL,
-			"Headline":       feed.Title,
-			"DisplayRefresh": true,
-			"FeedID":         id,
-			"LastFetchedAt":  feed.LastFetchedAt,
+			"Articles":        articles,
+			"SiteURL":         SiteURL,
+			"Headline":        feed.Title,
+			"DisplayRefresh":  true,
+			"DisplayCheckbox": true,
+			"CheckboxValues": map[string]string{
+				"hide_unread": strconv.FormatBool(feed.HideUnread),
+			},
+			"FeedID":        id,
+			"LastFetchedAt": feed.LastFetchedAt,
 		})
 	})
 
@@ -196,6 +201,21 @@ func main() {
 		}
 
 		refreshFeed(email, id)
+		c.Redirect(http.StatusFound, "/feed/"+id)
+	})
+
+	r.POST("/feed/:id/update", checklogin, func(c *gin.Context) {
+		hide := c.PostForm("hide_unread") == "true"
+
+		email := c.GetString("email")
+		id := c.Param("id")
+
+		if email == "" || id == "" {
+			c.String(http.StatusBadRequest, "invalid request")
+			return
+		}
+
+		updateFeed(email, id, hide)
 		c.Redirect(http.StatusFound, "/feed/"+id)
 	})
 
@@ -352,6 +372,26 @@ func main() {
 	r.Run(fmt.Sprintf(":%s", port))
 }
 
+func updateFeed(email, id string, hideUnread bool) error {
+	feed := getFeed(id, email)
+
+	if feed.ID == 0 || feed.HideUnread == hideUnread {
+		return nil
+	}
+
+	err := globalDB.Model(Feed{}).Where("email = ? and id = ?", email, id).Update("hide_unread", hideUnread).Error
+	if err != nil {
+		return fmt.Errorf("could not update feed: %v", err)
+	}
+
+	err = globalDB.Model(Article{}).Where("email = ? and feed_id = ?", email, id).Update("hide", hideUnread).Error
+	if err != nil {
+		return fmt.Errorf("could not update articles: %v", err)
+	}
+
+	return nil
+}
+
 func getReadArticle(uid, email string) (Article, error) {
 	article := Article{}
 
@@ -409,20 +449,20 @@ func addFeedAndCreateArticles(feedURL, email string) error {
 	return nil
 }
 
-func parseFeedAndSaveArticles(feedURL, email string, feedID, lastFetchedAt int64) ([]*Article, error) {
+func parseFeedAndSaveArticles(fd *Feed) ([]*Article, error) {
 	fp := gofeed.NewParser()
 
-	feed, err := fp.ParseURL(feedURL)
+	feed, err := fp.ParseURL(fd.URL)
 	if err != nil {
 		log.Errorf("ticker to get feed error: %v", err)
 		feed = &gofeed.Feed{}
 	}
 
 	feedFilter := func(item *gofeed.Item) bool {
-		if lastFetchedAt == 0 {
+		if fd.LastFetchedAt == 0 {
 			return rssItemTimeFilter(item, time.Hour*24*7)
 		}
-		return item.PublishedParsed.After(time.Unix(lastFetchedAt, 0))
+		return item.PublishedParsed.After(time.Unix(fd.LastFetchedAt, 0))
 	}
 
 	articles := make([]*Article, 0, len(feed.Items))
@@ -435,12 +475,12 @@ func parseFeedAndSaveArticles(feedURL, email string, feedID, lastFetchedAt int64
 		articles = append(articles, &Article{
 			Uid:       uuid.New().String(),
 			Name:      feed.Title,
-			FeedID:    feedID,
-			Email:     email,
+			FeedID:    fd.ID,
+			Email:     fd.Email,
 			Title:     item.Title,
 			Link:      item.Link,
 			Read:      false,
-			Hide:      false,
+			Hide:      fd.HideUnread,
 			Deleted:   false,
 			Content:   item.Content,
 			PublishAt: item.PublishedParsed.Unix(),
@@ -451,7 +491,7 @@ func parseFeedAndSaveArticles(feedURL, email string, feedID, lastFetchedAt int64
 		log.Errorf("could not create articles: %v", err)
 	}
 
-	if err := globalDB.Model(&Feed{ID: feedID}).
+	if err := globalDB.Model(&Feed{ID: fd.ID}).
 		Update("last_fetched_at", time.Now().Unix()).Error; err != nil {
 		log.Errorf("could not update feed item: %v", err)
 	}
@@ -608,6 +648,7 @@ type Feed struct {
 	Priority      int    `json:"priority" gorm:"column:priority"`
 	LastFetchedAt int64  `json:"last_fetched_at" gorm:"column:last_fetched_at"`
 	Email         string `json:"email" gorm:"column:email"`
+	HideUnread    bool   `json:"hide_unread" gorm:"column:hide_unread"`
 }
 
 func getSetFeed(url, email, title string, lastFetchedAt int64) (int64, error) {
@@ -693,7 +734,7 @@ func initDB() {
 func getRecentlyArticles(email string) []Article {
 	articles := []Article{}
 
-	err := globalDB.Where("email = ? and read = false", email).Order("publish_at desc").Find(&articles).Error
+	err := globalDB.Where("email = ? and read = false and hide = false", email).Order("publish_at desc").Find(&articles).Error
 	if err != nil {
 		log.Infof("could not get articles: %v", err)
 		return nil
@@ -754,7 +795,11 @@ func deleteFeed(email, id string) {
 func refreshFeed(email, id string) {
 	feed := getFeed(id, email)
 
-	parseFeedAndSaveArticles(feed.URL, feed.Email, feed.ID, feed.LastFetchedAt)
+	if feed.ID == 0 {
+		return
+	}
+
+	parseFeedAndSaveArticles(feed)
 }
 
 func encryptSession(session Session) (string, error) {
@@ -853,7 +898,7 @@ func (t *FeedParseJob) Start() {
 				continue
 			}
 
-			parseFeedAndSaveArticles(feedItem.URL, feedItem.Email, feedItem.ID, feedItem.LastFetchedAt)
+			parseFeedAndSaveArticles(&feedItem)
 		}
 	}
 }
