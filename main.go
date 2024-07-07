@@ -231,13 +231,13 @@ func main() {
 			return
 		}
 
-		err := addFeedAndCreateArticles(feedURL, email)
+		feedID, err := addFeedAndCreateArticles(feedURL, email)
 		if err != nil {
 			c.String(http.StatusInternalServerError, err.Error())
 			return
 		}
 
-		c.Redirect(http.StatusSeeOther, "/")
+		c.Redirect(http.StatusSeeOther, fmt.Sprintf("/feed/%d", feedID))
 	})
 
 	r.POST("/feed/import", checklogin, func(c *gin.Context) {
@@ -409,16 +409,16 @@ func getReadArticle(uid, email string) (Article, error) {
 	return article, nil
 }
 
-func addFeedAndCreateArticles(feedURL, email string) error {
+func addFeedAndCreateArticles(feedURL, email string) (int64, error) {
 	fp := gofeed.NewParser()
 	feed, err := fp.ParseURL(feedURL)
 	if err != nil {
-		return fmt.Errorf("could not fetch feed: %v", err)
+		return 0, fmt.Errorf("could not fetch feed: %v", err)
 	}
 
 	feedID, err := getSetFeed(feedURL, email, feed.Title, time.Now().Unix())
 	if err != nil {
-		return fmt.Errorf("could not set feed: %v", err)
+		return 0, fmt.Errorf("could not set feed: %v", err)
 	}
 
 	articles := make([]*Article, 0, len(feed.Items))
@@ -444,10 +444,10 @@ func addFeedAndCreateArticles(feedURL, email string) error {
 	}
 
 	if err := globalDB.CreateInBatches(articles, 10).Error; err != nil {
-		return fmt.Errorf("could not create articles: %v", err)
+		return feedID, fmt.Errorf("could not create articles: %v", err)
 	}
 
-	return nil
+	return feedID, nil
 }
 
 func parseFeedAndSaveArticles(fd *Feed) ([]*Article, error) {
