@@ -47,15 +47,15 @@
     {{ $HideCreateBy := .HideCreateBy }}
     {{range $idx, $article := .Articles}}
     <div class="article-item">
-      <a href="/article/{{$article.Uid}}" class="article-link">{{$article.Title}}</a>
+      <a href="/article/{{$article.Uid}}" class="article-link" target="_blank">{{$article.Title}}</a>
       {{if $HideCreateBy}}
       <span class="article-info">(at: {{timeformat $article.PublishAt}})</span>
       {{else}}
-      <span>(by: </span><a class="article-feed" href="/feed/{{$article.FeedID}}">{{$article.Name}}</a>,
+      <span>(by: </span><a class="article-feed" href="/feed/{{$article.FeedID}}" target="_blank">{{$article.Name}}</a>,
       <span class="article-info">at: {{timeformat $article.PublishAt}})</span>
       {{end}}
       {{if displayContentRead $article.Content}}
-      <a href="/article/{{$article.Uid}}/read">(+read)</a>
+      <a href="/article/{{$article.Uid}}/read" target="_blank">(+read)</a>
       {{end}}
     </div>
     {{end}}
