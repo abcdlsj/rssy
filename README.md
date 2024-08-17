@@ -53,3 +53,4 @@ docker run -d --restart unless-stopped -e DB="rssy.db" -e SITE_URL="https://exam
 ![feeds list](assets/feeds_list.png)
 ![feed post list](assets/feed_post_list.png)
 ![feed post](assets/feed_post.png)
+![stream](assets/stream.png)
