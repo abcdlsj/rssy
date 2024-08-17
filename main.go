@@ -394,8 +394,9 @@ func main() {
 		buzzingFeed := getBuzzingFeedEvery12Hours()
 
 		c.HTML(http.StatusOK, "stream.html", gin.H{
-			"SiteURL": SiteURL,
-			"Groups":  buzzingFeed.Groups,
+			"SiteURL":       SiteURL,
+			"Groups":        buzzingFeed.Groups,
+			"LastFetchTime": globalBuzzingFeedUpdatedAt.Unix(),
 		})
 	})
 
@@ -1213,7 +1214,7 @@ func getBuzzingFeedEvery12Hours() BuzzingFeed {
 		return globalBuzzingFeed
 	}
 
-	if time.Since(globalBuzzingFeedUpdatedAt) < 12*time.Hour {
+	if time.Since(globalBuzzingFeedUpdatedAt) < 4*time.Hour {
 		return globalBuzzingFeed
 	}
 
