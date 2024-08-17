@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    {{template "head" .}}
+  </head>
+  <body>
+    <div class="navbar">
+      <a href="/">Home</a>
+      <a href="/feed">Feeds</a>
+      <a href="/stream">Stream</a>
+    </div>
+    <div class="stream-meta">
+      <span>
+        (from <a href="https://buzzing.cc/" target="_blank">buzzing.cc</a>)
+      </span>
+    </div>
+    <div class="stream-container">
+      <div class="sidebar">
+        <h2>Groups</h2>
+        {{range $index, $group := .Groups}}
+        <div
+          class="group-header {{if eq $index 0}}active{{end}}"
+          data-index="{{$index}}"
+        >
+          {{$group.Title}}
+        </div>
+        {{end}}
+      </div>
+      <div class="stream-group-main-content">
+        {{range $index, $group := .Groups}}
+        <div
+          class="group-content {{if eq $index 0}}active{{end}}"
+          data-index="{{$index}}"
+        >
+          {{range .Items}}
+          <div class="stream-item">
+            <a href="{{.URL}}" target="_blank" class="stream-title"
+              >{{.Title}}</a
+            >
+            <span class="stream-info">
+              {{if .Author.Name}} by
+              <a href="{{.Author.URL}}" target="_blank">{{.Author.Name}}</a>,
+              {{end}} {{.HumanTime}}
+            </span>
+          </div>
+          {{end}}
+        </div>
+        {{end}}
+      </div>
+    </div>
+    <script>
+      document.addEventListener("DOMContentLoaded", function () {
+        const headers = document.querySelectorAll(".group-header");
+        headers.forEach((header) => {
+          header.addEventListener("click", function () {
+            const index = this.getAttribute("data-index");
+            document
+              .querySelectorAll(".group-header, .group-content")
+              .forEach((el) => el.classList.remove("active"));
+            this.classList.add("active");
+            document
+              .querySelector(`.group-content[data-index="${index}"]`)
+              .classList.add("active");
+          });
+        });
+      });
+    </script>
+  </body>
+</html>

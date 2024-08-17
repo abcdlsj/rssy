@@ -56,8 +56,7 @@
     align-items: center;
     margin: 0;
   }
-  .updatefeed-container 
-  .update-button,
+  .updatefeed-container .update-button,
   .refresh-button {
     background: none;
     border: none;
@@ -123,6 +122,55 @@
   .article-body {
     line-height: 1.6;
   }
+  .stream-container {
+    display: flex;
+    margin-top: 20px;
+  }
+  .sidebar {
+    width: 200px;
+    padding-right: 20px;
+    border-right: 1px solid #ccc;
+  }
+  .stream-group-main-content {
+    flex: 1;
+    padding-left: 20px;
+    padding-top: 5%;
+  }
+  .group-header {
+    cursor: pointer;
+    padding: 5px 0;
+    margin-bottom: 5px;
+  }
+  .group-header:hover {
+    background-color: #f0f0f0;
+  }
+  .group-header.active {
+    font-weight: bold;
+    background-color: #e0e0e0;
+  }
+  .group-content {
+    display: none;
+  }
+  .group-content.active {
+    display: block;
+  }
+  .stream-item {
+    margin-bottom: 8px;
+  }
+  .stream-item a {
+    text-decoration: none;
+  }
+  .stream-item a.visited {
+    color: #808080;
+  }
+  .stream-title {
+    text-decoration: none;
+  }
+  .stream-info {
+    font-size: 0.9em;
+    color: #666;
+    margin-left: 10px;
+  }
 </style>
 <link
   rel="stylesheet"
@@ -137,5 +185,18 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
 <script>
   hljs.highlightAll();
+
+  document.addEventListener('DOMContentLoaded', function() {
+    const links = document.querySelectorAll('.stream-item a');
+    links.forEach(link => {
+      if (localStorage.getItem(link.href)) {
+        link.classList.add('visited');
+      }
+      link.addEventListener('click', function() {
+        localStorage.setItem(this.href, 'visited');
+        this.classList.add('visited');
+      });
+    });
+  });
 </script>
 {{end}}
