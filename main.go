@@ -25,6 +25,7 @@ import (
 	"github.com/google/uuid"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/mmcdole/gofeed"
+	"github.com/sashabaranov/go-openai"
 	"gorm.io/driver/postgres"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
@@ -65,10 +66,15 @@ var (
 
 	tmpl = template.Must(template.New("").Funcs(tmplFuncs).ParseFS(tmplFS, "tmpl/*.html"))
 
-	port       = os.Getenv("PORT")
-	GHClientID = os.Getenv("GH_CLIENT_ID")
-	GHSecret   = os.Getenv("GH_SECRET")
-	SiteURL    = os.Getenv("SITE_URL")
+	port            = os.Getenv("PORT")
+	GHClientID      = os.Getenv("GH_CLIENT_ID")
+	GHSecret        = os.Getenv("GH_SECRET")
+	SiteURL         = os.Getenv("SITE_URL")
+	OPENAI_API_KEY  = os.Getenv("OPENAI_API_KEY")
+	OPENAI_ENDPOINT = os.Getenv("OPENAI_ENDPOINT")
+
+	openaiClient *openai.Client
+
 	DB         = orenv("DB", "rssy.db")
 	PG         = os.Getenv("PG") == "true"
 	TimeFormat = "2006-01-02 15:04:05"
@@ -90,6 +96,10 @@ var (
 
 func init() {
 	initDB()
+
+	cfg := openai.DefaultConfig(OPENAI_API_KEY)
+	cfg.BaseURL = OPENAI_ENDPOINT
+	openaiClient = openai.NewClientWithConfig(cfg)
 
 	gin.SetMode(gin.ReleaseMode)
 }
@@ -989,4 +999,23 @@ func exportOPML(feeds []Feed) ([]byte, error) {
 	}
 
 	return bytes, nil
+}
+
+func aiCompletion(client *openai.Client, prompt, content string) (string, error) {
+	resp, err := client.CreateChatCompletion(
+		context.Background(),
+		openai.ChatCompletionRequest{
+			Model: openai.GPT4oMini,
+			Messages: []openai.ChatCompletionMessage{
+				{Role: openai.ChatMessageRoleSystem, Content: prompt},
+				{Role: openai.ChatMessageRoleUser, Content: content},
+			},
+		},
+	)
+
+	if err != nil {
+		return "", fmt.Errorf("failed to create completion: %v", err)
+	}
+
+	return resp.Choices[0].Message.Content, nil
 }
