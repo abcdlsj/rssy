@@ -62,6 +62,14 @@ var (
 		"displayContentRead": func(content string) bool {
 			return len(content) >= 30
 		},
+
+		"buzTimeformat": func(t string) string {
+			tm, err := time.Parse(time.RFC3339Nano, t)
+			if err != nil {
+				return t
+			}
+			return humanize.Time(tm)
+		},
 	}
 
 	tmpl = template.Must(template.New("").Funcs(tmplFuncs).ParseFS(tmplFS, "tmpl/*.html"))
