@@ -39,7 +39,11 @@
             <span class="stream-info">
               {{if .Author.Name}} by
               <a href="{{.Author.URL}}" target="_blank">{{.Author.Name}}</a>,
-              {{end}} {{.OriginalPublished | buzTimeformat}}
+              {{end}}
+              {{if gt (len .Links) 0}}
+                <a href="{{(index .Links 0).URL}}" target="_blank">(+origin)</a>
+              {{end}}
+              {{.OriginalPublished | buzTimeformat}}
             </span>
           </div>
           {{end}}
@@ -66,3 +70,4 @@
     </script>
   </body>
 </html>
+
