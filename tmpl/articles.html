@@ -56,8 +56,9 @@
       <span class="article-info">at: {{timeformat $article.PublishAt}})</span>
       {{end}}
       {{if displayContentRead $article.Content}}
-      <a href="/article/{{$article.Uid}}/read" target="_blank">(+read)</a>
+      <a href="/article/{{$article.Uid}}/read" target="_blank" class="article-action-read">(+r)</a>
       {{end}}
+      <a href="/article/{{$article.Uid}}/delete" class="article-action-delete">(+d)</a>
     </div>
     {{end}}
   </body>

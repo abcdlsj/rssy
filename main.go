@@ -356,6 +356,24 @@ func main() {
 		})
 	})
 
+	r.GET("/article/:uid/delete", checklogin, func(c *gin.Context) {
+		uid := c.Param("uid")
+		email := c.GetString("email")
+
+		if email == "" || uid == "" {
+			c.String(http.StatusBadRequest, "invalid request")
+			return
+		}
+
+		err := deleteArticle(uid, email)
+		if err != nil {
+			c.String(http.StatusInternalServerError, err.Error())
+			return
+		}
+
+		c.Redirect(http.StatusSeeOther, "/")
+	})
+
 	r.GET("/favicon.ico", func(c *gin.Context) {
 		favicon, _ := assetFs.ReadFile("assets/favicon.ico")
 		c.Data(http.StatusOK, "image/x-icon", favicon)
@@ -789,6 +807,14 @@ func getRecentlyArticles(email string) []Article {
 	}
 
 	return articles
+}
+
+func deleteArticle(uid, email string) error {
+	err := globalDB.Where("uid = ? AND email = ?", uid, email).Delete(&Article{}).Error
+	if err != nil {
+		return fmt.Errorf("could not delete article: %v", err)
+	}
+	return nil
 }
 
 func getFeedArticles(email, feedID string) []Article {
