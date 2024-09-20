@@ -162,19 +162,25 @@
   .stream-item {
     margin-bottom: 8px;
   }
-  .stream-item a {
+  .stream-summary {
+    font-size: 1em;
     text-decoration: none;
   }
-  .stream-item a.visited {
+  .stream-summary a {
+    text-decoration: none;
+  }
+  .stream-summary a.visited {
     color: #808080;
-  }
-  .stream-title {
-    text-decoration: none;
   }
   .stream-info {
     font-size: 0.9em;
     color: #666;
     margin-left: 10px;
+  }
+  .stream-title {
+    font-size: 0.8em;
+    color: #666;
+    text-decoration: none;
   }
 </style>
 <link
@@ -192,7 +198,7 @@
   hljs.highlightAll();
 
   document.addEventListener('DOMContentLoaded', function() {
-    const links = document.querySelectorAll('.stream-item a');
+    const links = document.querySelectorAll('.stream-item .stream-summary a');
     links.forEach(link => {
       if (localStorage.getItem(link.href)) {
         link.classList.add('visited');
