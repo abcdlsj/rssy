@@ -198,8 +198,8 @@
   hljs.highlightAll();
 
   document.addEventListener('DOMContentLoaded', function() {
-    const links = document.querySelectorAll('.stream-item .stream-summary a');
-    links.forEach(link => {
+    const summaryLinks = document.querySelectorAll('.stream-item .stream-summary a');
+    summaryLinks.forEach(link => {
       if (localStorage.getItem(link.href)) {
         link.classList.add('visited');
       }

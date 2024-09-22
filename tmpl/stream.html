@@ -33,7 +33,9 @@
         >
           {{range .Items}}
           <div class="stream-item">
-            <a href="{{.URL}}" target="_blank" class="stream-summary">{{.Summary}}</a>
+            <div class="stream-summary">
+              <a href="{{.URL}}" target="_blank">{{.Summary}}</a>
+            </div>
             <span class="stream-title">({{.Title}})</span>
             <span class="stream-info">
               {{if .Author.Name}} by
