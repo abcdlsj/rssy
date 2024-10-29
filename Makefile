@@ -7,7 +7,7 @@ help:
 
 .PHONY: build
 build: 
-	go build -o rssy
+	go build -o rssy cmd/main.go
 
 
 .PHONY: install

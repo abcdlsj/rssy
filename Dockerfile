@@ -3,7 +3,7 @@ RUN apk add --no-cache build-base
 RUN apk --no-cache add ca-certificates
 WORKDIR /build
 COPY . .
-RUN go build -ldflags="-s -w" -trimpath -o /dist/rssy .
+RUN go build -ldflags="-s -w" -trimpath -o /dist/rssy cmd/main.go
 RUN ldd /dist/rssy | tr -s [:blank:] '\n' | grep ^/ | xargs -I % install -D % /dist/%
 RUN ln -s ld-musl-x86_64.so.1 /dist/lib/libc.musl-x86_64.so.1
 
