@@ -66,24 +66,33 @@ type Article struct {
 }
 
 type Feed struct {
-	ID            int64  `json:"id" gorm:"column:id"`
-	URL           string `json:"url" gorm:"column:url"`
-	Title         string `json:"title" gorm:"column:title"`
-	CreateAt      int64  `json:"create_at" gorm:"column:create_at"`
-	Priority      int    `json:"priority" gorm:"column:priority"`
-	LastFetchedAt int64  `json:"last_fetched_at" gorm:"column:last_fetched_at"`
-	Email         string `json:"email" gorm:"column:email"`
-	HideUnread    bool   `json:"hide_unread" gorm:"column:hide_unread"`
+	ID                int64  `json:"id" gorm:"column:id"`
+	URL               string `json:"url" gorm:"column:url"`
+	Title             string `json:"title" gorm:"column:title"`
+	CreateAt          int64  `json:"create_at" gorm:"column:create_at"`
+	Priority          int    `json:"priority" gorm:"column:priority"`
+	LastFetchedAt     int64  `json:"last_fetched_at" gorm:"column:last_fetched_at"`
+	Email             string `json:"email" gorm:"column:email"`
+	HideUnread        bool   `json:"hide_unread" gorm:"column:hide_unread"`
+	EnableReadability bool   `json:"enable_readability" gorm:"column:enable_readability"`
 }
 
-func updateFeed(email, id string, hideUnread bool) error {
+const (
+	SceneReadability = "readability"
+)
+
+func updateFeed(email, id string, hideUnread, enableReadability bool) error {
 	feed := getFeed(id, email)
 
-	if feed.ID == 0 || feed.HideUnread == hideUnread {
+	if feed.ID == 0 || (feed.HideUnread == hideUnread && feed.EnableReadability == enableReadability) {
 		return nil
 	}
 
-	err := globalDB.Model(Feed{}).Where("email = ? and id = ?", email, id).Update("hide_unread", hideUnread).Error
+	err := globalDB.Model(Feed{}).Where("email = ? and id = ?", email, id).
+		Updates(map[string]interface{}{
+			"hide_unread":        hideUnread,
+			"enable_readability": enableReadability,
+		}).Error
 	if err != nil {
 		return fmt.Errorf("could not update feed: %v", err)
 	}
@@ -92,6 +101,8 @@ func updateFeed(email, id string, hideUnread bool) error {
 	if err != nil {
 		return fmt.Errorf("could not update articles: %v", err)
 	}
+
+	readabilityCache.Delete(SceneReadability, feed.ID)
 
 	return nil
 }
@@ -322,4 +333,21 @@ func rssItemTimeFilter(item *gofeed.Item, dur time.Duration) bool {
 	}
 
 	return item.PublishedParsed.Unix() > time.Now().Add(-dur).Unix()
+}
+
+func getFeedEnableReadability(feedID int64) bool {
+	if value, exists := readabilityCache.Get(SceneReadability, feedID); exists {
+		return value.(bool)
+	}
+
+	var feed Feed
+	err := globalDB.Select("enable_readability").Where("id = ?", feedID).First(&feed).Error
+	if err != nil {
+		log.Infof("could not get feed: %v", err)
+		return false
+	}
+
+	readabilityCache.Set(SceneReadability, feedID, feed.EnableReadability)
+
+	return feed.EnableReadability
 }

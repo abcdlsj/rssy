@@ -47,6 +47,9 @@ var (
 			}
 			return humanize.Time(tm)
 		},
+		"enableReadabilityButton": func(feedID int64) bool {
+			return getFeedEnableReadability(feedID)
+		},
 	}
 
 	tmpl = template.Must(template.New("").Funcs(tmplFuncs).ParseFS(tmplFS, "tmpl/*.html"))

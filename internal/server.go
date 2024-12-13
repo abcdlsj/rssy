@@ -84,7 +84,8 @@ func ServerRouter() *gin.Engine {
 			"DisplayRefresh":  true,
 			"DisplayCheckbox": true,
 			"CheckboxValues": map[string]string{
-				"hide_unread": strconv.FormatBool(feed.HideUnread),
+				"hide_unread":        strconv.FormatBool(feed.HideUnread),
+				"enable_readability": strconv.FormatBool(feed.EnableReadability),
 			},
 			"HideCreateBy":  true,
 			"FeedID":        id,
@@ -120,6 +121,7 @@ func ServerRouter() *gin.Engine {
 
 	r.POST("/feed/:id/update", checklogin, func(c *gin.Context) {
 		hide := c.PostForm("hide_unread") == "true"
+		enableReadability := c.PostForm("enable_readability") == "true"
 
 		email := c.GetString("email")
 		id := c.Param("id")
@@ -129,7 +131,9 @@ func ServerRouter() *gin.Engine {
 			return
 		}
 
-		updateFeed(email, id, hide)
+		log.Infof("update feed: %s, %t, %t", id, hide, enableReadability)
+
+		updateFeed(email, id, hide, enableReadability)
 		c.Redirect(http.StatusFound, "/feed/"+id)
 	})
 
