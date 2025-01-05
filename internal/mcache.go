@@ -19,7 +19,7 @@ type MemoryCache struct {
 
 var (
 	// 全局缓存实例
-	readabilityCache = NewMemoryCache(time.Hour)
+	GlobalMemoryCache = NewMemoryCache(time.Hour)
 )
 
 func NewMemoryCache(ttl time.Duration) *MemoryCache {

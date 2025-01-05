@@ -58,7 +58,6 @@ type Article struct {
 	Title     string `json:"title" gorm:"column:title"`
 	Link      string `json:"link" gorm:"column:link"`
 	Read      bool   `json:"read" gorm:"column:read"`
-	Hide      bool   `json:"hide" gorm:"column:hide"`
 	Deleted   bool   `json:"deleted" gorm:"column:deleted"`
 	CreateAt  int64  `json:"create_at" gorm:"column:create_at"`
 	PublishAt int64  `json:"publish_at" gorm:"column:publish_at"`
@@ -75,34 +74,39 @@ type Feed struct {
 	Email             string `json:"email" gorm:"column:email"`
 	HideUnread        bool   `json:"hide_unread" gorm:"column:hide_unread"`
 	EnableReadability bool   `json:"enable_readability" gorm:"column:enable_readability"`
+	Highlight         bool   `json:"highlight" gorm:"column:highlight"`
+}
+
+type FeedMetaCache struct {
+	EnableReadability bool
+	Highlight         bool
+	HideUnread        bool
 }
 
 const (
-	SceneReadability = "readability"
+	SceneFeedMeta = "feed_meta"
 )
 
-func updateFeed(email, id string, hideUnread, enableReadability bool) error {
+func updateFeed(email, id string, hideUnread, enableReadability, highlight bool) error {
 	feed := getFeed(id, email)
 
-	if feed.ID == 0 || (feed.HideUnread == hideUnread && feed.EnableReadability == enableReadability) {
+	if feed.ID == 0 || (feed.HideUnread == hideUnread &&
+		feed.EnableReadability == enableReadability &&
+		feed.Highlight == highlight) {
 		return nil
 	}
+
+	defer GlobalMemoryCache.Delete(SceneFeedMeta, feed.ID)
 
 	err := globalDB.Model(Feed{}).Where("email = ? and id = ?", email, id).
 		Updates(map[string]interface{}{
 			"hide_unread":        hideUnread,
 			"enable_readability": enableReadability,
+			"highlight":          highlight,
 		}).Error
 	if err != nil {
 		return fmt.Errorf("could not update feed: %v", err)
 	}
-
-	err = globalDB.Model(Article{}).Where("email = ? and feed_id = ?", email, id).Update("hide", hideUnread).Error
-	if err != nil {
-		return fmt.Errorf("could not update articles: %v", err)
-	}
-
-	readabilityCache.Delete(SceneReadability, feed.ID)
 
 	return nil
 }
@@ -149,7 +153,6 @@ func addFeedAndCreateArticles(feedURL, email string) (int64, error) {
 			Title:     item.Title,
 			Link:      item.Link,
 			Read:      false,
-			Hide:      false,
 			Deleted:   false,
 			Content:   item.Content,
 			PublishAt: item.PublishedParsed.Unix(),
@@ -203,7 +206,6 @@ func parseFeedAndSaveArticles(fd *Feed) ([]*Article, error) {
 			Title:     item.Title,
 			Link:      item.Link,
 			Read:      false,
-			Hide:      fd.HideUnread,
 			Deleted:   false,
 			Content:   item.Content,
 			PublishAt: item.PublishedParsed.Unix(),
@@ -251,7 +253,7 @@ func getFeed(id, email string) *Feed {
 func getRecentlyArticles(email string) []Article {
 	articles := []Article{}
 
-	err := globalDB.Where("email = ? and read = false and hide = false", email).Order("publish_at desc").Find(&articles).Error
+	err := globalDB.Where("email = ? and read = false", email).Order("publish_at desc").Find(&articles).Error
 	if err != nil {
 		log.Infof("could not get articles: %v", err)
 		return nil
@@ -335,19 +337,24 @@ func rssItemTimeFilter(item *gofeed.Item, dur time.Duration) bool {
 	return item.PublishedParsed.Unix() > time.Now().Add(-dur).Unix()
 }
 
-func getFeedEnableReadability(feedID int64) bool {
-	if value, exists := readabilityCache.Get(SceneReadability, feedID); exists {
-		return value.(bool)
+func getFeedMetaWithCache(feedID int64) FeedMetaCache {
+	if value, exists := GlobalMemoryCache.Get(SceneFeedMeta, feedID); exists {
+		return value.(FeedMetaCache)
 	}
 
 	var feed Feed
-	err := globalDB.Select("enable_readability").Where("id = ?", feedID).First(&feed).Error
+	err := globalDB.Select("enable_readability, highlight, hide_unread").Where("id = ?", feedID).First(&feed).Error
 	if err != nil {
 		log.Infof("could not get feed: %v", err)
-		return false
+		return FeedMetaCache{}
 	}
 
-	readabilityCache.Set(SceneReadability, feedID, feed.EnableReadability)
+	meta := FeedMetaCache{
+		EnableReadability: feed.EnableReadability,
+		Highlight:         feed.Highlight,
+		HideUnread:        feed.HideUnread,
+	}
 
-	return feed.EnableReadability
+	GlobalMemoryCache.Set(SceneFeedMeta, feedID, meta)
+	return meta
 }

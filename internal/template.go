@@ -48,7 +48,15 @@ var (
 			return humanize.Time(tm)
 		},
 		"enableReadabilityButton": func(feedID int64) bool {
-			return getFeedEnableReadability(feedID)
+			return getFeedMetaWithCache(feedID).EnableReadability
+		},
+
+		"getFeedHighlight": func(feedID int64) bool {
+			return getFeedMetaWithCache(feedID).Highlight
+		},
+
+		"getFeedHideUnread": func(feedID int64) bool {
+			return getFeedMetaWithCache(feedID).HideUnread
 		},
 	}
 
