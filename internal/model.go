@@ -212,13 +212,20 @@ func parseFeedAndSaveArticles(fd *Feed) ([]*Article, error) {
 		})
 	}
 
-	if err := globalDB.CreateInBatches(articles, 10).Error; err != nil {
-		log.Errorf("could not create articles: %v", err)
-	}
+	err = globalDB.Transaction(func(tx *gorm.DB) error {
+		if err := tx.CreateInBatches(articles, 10).Error; err != nil {
+			return fmt.Errorf("could not create articles: %v", err)
+		}
 
-	if err := globalDB.Model(&Feed{ID: fd.ID}).
-		Update("last_fetched_at", time.Now().Unix()).Error; err != nil {
-		log.Errorf("could not update feed item: %v", err)
+		if err := tx.Model(&Feed{ID: fd.ID}).Update("last_fetched_at", time.Now().Unix()).Error; err != nil {
+			return fmt.Errorf("could not update feed item: %v", err)
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return nil, fmt.Errorf("could not parse feed and save articles: %v", err)
 	}
 
 	return articles, nil
