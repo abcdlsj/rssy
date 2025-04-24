@@ -379,8 +379,9 @@ func getYesterdayHighlightedUnreadArticles() ([]Article, error) {
 		return []Article{}, nil
 	}
 
-	yesterday := time.Now().Add(-24 * time.Hour)
-	start := time.Date(yesterday.Year(), yesterday.Month(), yesterday.Day(), 0, 0, 0, 0, yesterday.Location())
+	// 使用正确的时区
+	yesterday := time.Now().In(TimeZone).Add(-24 * time.Hour)
+	start := time.Date(yesterday.Year(), yesterday.Month(), yesterday.Day(), 0, 0, 0, 0, TimeZone)
 	end := start.Add(24 * time.Hour)
 
 	var articles []Article

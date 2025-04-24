@@ -67,22 +67,24 @@ func (t *FeedParseJob) Stop() {
 
 func (t *DailyNotifyJob) Start() {
 	log.Infof("start daily notify job")
+	hour, minute, err := parseNotifyTime()
+	if err != nil {
+		log.Errorf("failed to parse notify time, %s", NotifyTime)
+	}
+
+	log.Infof("parsed notify time H:M=%d:%d", hour, minute)
 	for range t.tk.C {
-		now := time.Now()
+		now := time.Now().In(TimeZone)
 		today := now.Format("2006-01-02")
 
 		if today == t.lastNotifyDate {
 			continue
 		}
 
-		if hour, minute, err := parseNotifyTime(); err == nil {
-			if now.Hour() == hour && now.Minute() >= minute && now.Minute() < minute+10 {
-				log.Infof("sending daily notification at %v", now)
-				sendmsg()
-				t.lastNotifyDate = today
-			}
-		} else {
-			log.Errorf("failed to parse notify time: %v", err)
+		if now.Hour() == hour && now.Minute() >= minute && now.Minute() < minute+10 {
+			log.Infof("sending daily notification at %v (CST)", now.Format(TimeFormat))
+			scheduleSendDailyNotify()
+			t.lastNotifyDate = today
 		}
 	}
 }

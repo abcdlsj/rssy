@@ -2,6 +2,7 @@ package internal
 
 import (
 	"os"
+	"time"
 )
 
 var (
@@ -15,4 +16,6 @@ var (
 	NotiKey = os.Getenv("NOTI_KEY")
 	// 默认早上 8 点发送
 	NotifyTime = orenv("NOTIFY_TIME", "08:00")
+
+	TimeZone = time.FixedZone("CST", 8*3600)
 )

@@ -11,7 +11,7 @@ import (
 	"github.com/charmbracelet/log"
 )
 
-func sendmsg() {
+func scheduleSendDailyNotify() {
 	url := fmt.Sprintf("https://www.notifyx.cn/api/v1/send/%s", NotiKey)
 
 	articles, err := getYesterdayHighlightedUnreadArticles()
