@@ -1,6 +1,9 @@
 package internal
 
 import (
+	"fmt"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/charmbracelet/log"
@@ -11,6 +14,10 @@ var (
 		emails: []string{"github@songjian.li"},
 		tk:     time.NewTicker(30 * time.Minute),
 	}
+
+	dailyNotifyJob = &DailyNotifyJob{
+		tk: time.NewTicker(time.Minute),
+	}
 )
 
 type FeedParseJob struct {
@@ -18,9 +25,18 @@ type FeedParseJob struct {
 	emails []string
 }
 
+type DailyNotifyJob struct {
+	tk             *time.Ticker
+	lastNotifyDate string
+}
+
 func init() {
 	go func() {
 		fetchParseJob.Start()
+	}()
+
+	go func() {
+		dailyNotifyJob.Start()
 	}()
 }
 
@@ -47,4 +63,49 @@ func (t *FeedParseJob) Start() {
 
 func (t *FeedParseJob) Stop() {
 	t.tk.Stop()
+}
+
+func (t *DailyNotifyJob) Start() {
+	log.Infof("start daily notify job")
+	for range t.tk.C {
+		now := time.Now()
+		today := now.Format("2006-01-02")
+
+		if today == t.lastNotifyDate {
+			continue
+		}
+
+		if hour, minute, err := parseNotifyTime(); err == nil {
+			if now.Hour() == hour && now.Minute() >= minute && now.Minute() < minute+10 {
+				log.Infof("sending daily notification at %v", now)
+				sendmsg()
+				t.lastNotifyDate = today
+			}
+		} else {
+			log.Errorf("failed to parse notify time: %v", err)
+		}
+	}
+}
+
+func (t *DailyNotifyJob) Stop() {
+	t.tk.Stop()
+}
+
+func parseNotifyTime() (hour, minute int, err error) {
+	parts := strings.Split(NotifyTime, ":")
+	if len(parts) != 2 {
+		return 0, 0, fmt.Errorf("invalid notify time format, should be HH:MM, got %s", NotifyTime)
+	}
+
+	hour, err = strconv.Atoi(parts[0])
+	if err != nil || hour < 0 || hour > 23 {
+		return 0, 0, fmt.Errorf("invalid hour: %s", parts[0])
+	}
+
+	minute, err = strconv.Atoi(parts[1])
+	if err != nil || minute < 0 || minute > 59 {
+		return 0, 0, fmt.Errorf("invalid minute: %s", parts[1])
+	}
+
+	return hour, minute, nil
 }

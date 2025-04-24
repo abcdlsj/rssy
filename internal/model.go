@@ -365,3 +365,32 @@ func getFeedMetaWithCache(feedID int64) FeedMetaCache {
 	GlobalMemoryCache.Set(SceneFeedMeta, feedID, meta)
 	return meta
 }
+
+func getYesterdayHighlightedUnreadArticles() ([]Article, error) {
+	var highlightedFeedIDs []int64
+	if err := globalDB.Model(&Feed{}).
+		Where("highlight = ?", true).
+		Pluck("id", &highlightedFeedIDs).Error; err != nil {
+		return nil, fmt.Errorf("failed to fetch highlighted feed ids: %v", err)
+	}
+
+	// 如果没有高亮的 feeds，直接返回空结果
+	if len(highlightedFeedIDs) == 0 {
+		return []Article{}, nil
+	}
+
+	yesterday := time.Now().Add(-24 * time.Hour)
+	start := time.Date(yesterday.Year(), yesterday.Month(), yesterday.Day(), 0, 0, 0, 0, yesterday.Location())
+	end := start.Add(24 * time.Hour)
+
+	var articles []Article
+	err := globalDB.Where("publish_at >= ? AND publish_at < ? AND read = ? AND deleted = ? AND feed_id IN ?",
+		start.Unix(), end.Unix(), false, false, highlightedFeedIDs).
+		Find(&articles).Error
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch articles: %v", err)
+	}
+
+	return articles, nil
+}
