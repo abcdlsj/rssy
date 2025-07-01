@@ -72,8 +72,9 @@ func (t *DailyNotifyJob) Start() {
 		log.Errorf("failed to parse notify time, %s", NotifyTime)
 	}
 
-	log.Infof("parsed notify time H:M=%d:%d", hour, minute)
+	log.Infof("parsed notify time H:M=%d:%d (CST/UTC+8)", hour, minute)
 	for range t.tk.C {
+		// 确保使用中国时区
 		now := time.Now().In(TimeZone)
 		today := now.Format("2006-01-02")
 
@@ -81,8 +82,14 @@ func (t *DailyNotifyJob) Start() {
 			continue
 		}
 
+		// 记录当前时间和目标时间，便于调试
+		if now.Minute() == 0 || now.Minute() == 30 {
+			log.Infof("Current time: %v (CST/UTC+8), target time: %02d:%02d",
+				now.Format(TimeFormat), hour, minute)
+		}
+
 		if now.Hour() == hour && now.Minute() >= minute && now.Minute() < minute+10 {
-			log.Infof("sending daily notification at %v (CST)", now.Format(TimeFormat))
+			log.Infof("sending daily notification at %v (CST/UTC+8)", now.Format(TimeFormat))
 			scheduleSendDailyNotify()
 			t.lastNotifyDate = today
 		}

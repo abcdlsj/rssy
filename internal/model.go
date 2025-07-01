@@ -191,10 +191,30 @@ func parseFeedAndSaveArticles(fd *Feed) ([]*Article, error) {
 		return item.PublishedParsed.After(time.Unix(fd.LastFetchedAt, 0))
 	}
 
+	// 获取已存在的文章标题，用于去重
+	var existingTitles []string
+	if err := globalDB.Model(&Article{}).
+		Where("feed_id = ? AND email = ?", fd.ID, fd.Email).
+		Pluck("title", &existingTitles).Error; err != nil {
+		log.Errorf("failed to fetch existing titles: %v", err)
+	}
+
+	// 创建标题映射，用于快速查找
+	existingTitlesMap := make(map[string]bool)
+	for _, title := range existingTitles {
+		existingTitlesMap[title] = true
+	}
+
 	articles := make([]*Article, 0, len(feed.Items))
 
 	for _, item := range feed.Items {
 		if !feedFilter(item) {
+			continue
+		}
+
+		// 标题去重检查
+		if _, exists := existingTitlesMap[item.Title]; exists {
+			log.Infof("skipping duplicate article: %s", item.Title)
 			continue
 		}
 
@@ -209,6 +229,7 @@ func parseFeedAndSaveArticles(fd *Feed) ([]*Article, error) {
 			Deleted:   false,
 			Content:   item.Content,
 			PublishAt: item.PublishedParsed.Unix(),
+			CreateAt:  time.Now().Unix(),
 		})
 	}
 
@@ -367,16 +388,16 @@ func getFeedMetaWithCache(feedID int64) FeedMetaCache {
 }
 
 func getYesterdayHighlightedUnreadArticles() ([]Article, error) {
+	// 获取高亮的 feed IDs
 	var highlightedFeedIDs []int64
 	if err := globalDB.Model(&Feed{}).
 		Where("highlight = ?", true).
 		Pluck("id", &highlightedFeedIDs).Error; err != nil {
-		return nil, fmt.Errorf("failed to fetch highlighted feed ids: %v", err)
+		return nil, fmt.Errorf("failed to fetch highlighted feed IDs: %v", err)
 	}
 
-	// 如果没有高亮的 feeds，直接返回空结果
 	if len(highlightedFeedIDs) == 0 {
-		return []Article{}, nil
+		return nil, fmt.Errorf("no highlighted feeds found")
 	}
 
 	// 使用正确的时区
