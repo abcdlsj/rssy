@@ -440,8 +440,15 @@ func ServerRouter() *gin.Engine {
 			return
 		}
 
-		now := time.Now()
-		err := generateDailyAISummary(email, now)
+		// 使用上海时区的当前时间，生成当天0点到24点的总结
+		now := time.Now().In(TimeZone)
+		// 确保使用当天的0点作为起始时间
+		today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, TimeZone)
+		
+		log.Infof("Generating AI summary for user %s for date %s (CST)", 
+			email, today.Format("2006-01-02"))
+		
+		err := generateDailyAISummary(email, today)
 
 		var message string
 		if err != nil {

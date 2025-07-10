@@ -385,8 +385,12 @@ func createAISummary(email, date, title, summary, categories string, articleCoun
 }
 
 func getArticlesForAISummary(email string, date time.Time) ([]Article, error) {
-	start := time.Date(date.Year(), date.Month(), date.Day(), 0, 0, 0, 0, date.Location())
+	// 确保使用上海时区（CST）
+	start := time.Date(date.Year(), date.Month(), date.Day(), 0, 0, 0, 0, TimeZone)
 	end := start.Add(24 * time.Hour)
+
+	log.Infof("Getting articles for AI summary: email=%s, date=%s, start=%v, end=%v",
+		email, date.Format("2006-01-02"), start.Unix(), end.Unix())
 
 	var articles []Article
 	err := globalDB.Where("email = ? AND publish_at >= ? AND publish_at < ? AND deleted = false",
@@ -394,6 +398,8 @@ func getArticlesForAISummary(email string, date time.Time) ([]Article, error) {
 	if err != nil {
 		return nil, fmt.Errorf("could not get articles for AI summary: %v", err)
 	}
+
+	log.Infof("Found %d articles for AI summary", len(articles))
 	return articles, nil
 }
 
