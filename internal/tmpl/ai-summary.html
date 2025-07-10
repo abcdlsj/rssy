@@ -1,12 +1,12 @@
 {{template "head" .}}
-<h1>AI Summary</h1>
+<h1>Summary</h1>
 
 <div class="navbar">
-  <a href="{{.SiteURL}}/">Unreads</a>
-  <a href="{{.SiteURL}}/feed">Feeds</a>
-  <a href="{{.SiteURL}}/stream">Stream</a>
-  <a href="{{.SiteURL}}/preference">Preferences</a>
-  <a href="{{.SiteURL}}/ai-summary">AI Summary</a>
+  <a href="/">Home</a>
+  <a href="/feed">Feeds</a>
+  <a href="/stream">Stream</a>
+  <a href="/preference">Preferences</a>
+  <a href="/ai-summary">Summary</a>
 </div>
 
 {{if .Summaries}}
@@ -49,12 +49,6 @@
   <p>No AI summaries available yet. Enable AI summary in <a href="{{.SiteURL}}/preference">Preferences</a> to start generating daily summaries.</p>
 </div>
 {{end}}
-
-<div class="manual-trigger">
-  <form method="post" action="{{.SiteURL}}/ai-summary/generate">
-    <button type="submit">Generate Summary for Today</button>
-  </form>
-</div>
 
 {{if .Message}}
 <div class="message">{{.Message}}</div>
@@ -141,25 +135,6 @@
     text-decoration: underline;
   }
   
-  .manual-trigger {
-    text-align: center;
-    margin: 30px 0;
-  }
-  
-  .manual-trigger button {
-    padding: 10px 20px;
-    background: #007bff;
-    color: white;
-    border: none;
-    border-radius: 5px;
-    cursor: pointer;
-    font-size: 16px;
-  }
-  
-  .manual-trigger button:hover {
-    background: #0056b3;
-  }
-  
   .message {
     margin: 20px auto;
     max-width: 800px;
@@ -169,5 +144,55 @@
     border: 1px solid #c3e6cb;
     color: #155724;
     text-align: center;
+  }
+
+  /* Dark mode styles */
+  @media (prefers-color-scheme: dark) {
+    .summary-item {
+      background: #2d3748;
+      border-color: #4a5568;
+    }
+    
+    .summary-header {
+      border-bottom-color: #4a5568;
+    }
+    
+    .summary-header h2 {
+      color: #e2e8f0;
+    }
+    
+    .summary-meta {
+      color: #a0aec0;
+    }
+    
+    .summary-categories {
+      border-top-color: #4a5568;
+    }
+    
+    .summary-categories h4 {
+      color: #cbd5e0;
+    }
+    
+    .categories-content {
+      color: #a0aec0;
+    }
+    
+    .summary-content {
+      color: #e2e8f0;
+    }
+    
+    .no-summaries {
+      color: #a0aec0;
+    }
+    
+    .no-summaries a {
+      color: #63b3ed;
+    }
+    
+    .message {
+      background: #2d5a3d;
+      border-color: #38a169;
+      color: #c6f6d5;
+    }
   }
 </style>

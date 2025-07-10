@@ -2,11 +2,11 @@
 <h1>Preferences</h1>
 
 <div class="navbar">
-  <a href="{{.SiteURL}}/">Unreads</a>
-  <a href="{{.SiteURL}}/feed">Feeds</a>
-  <a href="{{.SiteURL}}/stream">Stream</a>
-  <a href="{{.SiteURL}}/preference">Preferences</a>
-  <a href="{{.SiteURL}}/ai-summary">AI Summary</a>
+  <a href="/">Home</a>
+  <a href="/feed">Feeds</a>
+  <a href="/stream">Stream</a>
+  <a href="/preference">Preferences</a>
+  <a href="/ai-summary">Summary</a>
 </div>
 
 <form method="post" action="{{.SiteURL}}/preference/update">
@@ -124,5 +124,48 @@
   
   .form-container {
     margin-top: 15px;
+  }
+
+  /* Dark mode styles */
+  @media (prefers-color-scheme: dark) {
+    fieldset {
+      border-color: #4a5568;
+      background: #2d3748;
+    }
+    
+    legend {
+      color: #e2e8f0;
+    }
+    
+    label {
+      color: #e2e8f0;
+    }
+    
+    input[type="number"], input[type="time"], textarea {
+      background: #4a5568;
+      border: 1px solid #718096;
+      color: #e2e8f0;
+    }
+    
+    input[type="number"]:focus, input[type="time"]:focus, textarea:focus {
+      border-color: #63b3ed;
+      outline: none;
+    }
+    
+    button {
+      background: #4a5568;
+      border-color: #718096;
+      color: #e2e8f0;
+    }
+    
+    button:hover {
+      background: #2d3748;
+    }
+    
+    .message {
+      background: #2d5a3d;
+      border-color: #38a169;
+      color: #c6f6d5;
+    }
   }
 </style>
