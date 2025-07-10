@@ -19,9 +19,16 @@ var (
 )
 
 func init() {
-	cfg := openai.DefaultConfig(OPENAI_API_KEY)
-	cfg.BaseURL = OPENAI_ENDPOINT
-	openaiClient = openai.NewClientWithConfig(cfg)
+	if OPENAI_API_KEY != "" {
+		cfg := openai.DefaultConfig(OPENAI_API_KEY)
+		if OPENAI_ENDPOINT != "" {
+			cfg.BaseURL = OPENAI_ENDPOINT
+		}
+		openaiClient = openai.NewClientWithConfig(cfg)
+		log.Infof("OpenAI client initialized with API key")
+	} else {
+		log.Infof("No OpenAI API key found, will use simple summary")
+	}
 }
 
 func aiCompletion(prompt, content string) (string, error) {
@@ -63,34 +70,41 @@ func generateDailyAISummary(email string, date time.Time) error {
 		return fmt.Errorf("no articles found for date %s", date.Format("2006-01-02"))
 	}
 
-	// 如果没有OpenAI API Key，创建一个简单的总结
+	log.Infof("Generating summary for %d articles", len(articles))
+
+	// 尝试使用AI，如果失败则使用简单总结
 	var summary string
 	var categories string
+	var summaryType string
 	
-	if OPENAI_API_KEY == "" {
-		log.Infof("No OpenAI API key found, generating simple summary")
+	if OPENAI_API_KEY == "" || openaiClient == nil {
+		log.Infof("No OpenAI API key configured, using simple summary")
 		summary = generateSimpleSummary(articles)
 		categories = generateSimpleCategories(articles)
+		summaryType = "Simple"
 	} else {
 		articlesText := formatArticlesForAI(articles)
 		summary, err = aiCompletion(pref.AISummaryPrompt, articlesText)
 		if err != nil {
-			log.Errorf("AI completion failed, falling back to simple summary: %v", err)
+			log.Errorf("AI completion failed, using simple summary instead: %v", err)
 			summary = generateSimpleSummary(articles)
 			categories = generateSimpleCategories(articles)
+			summaryType = "Simple (AI failed)"
 		} else {
 			categories = extractCategories(summary)
+			summaryType = "AI-generated"
 		}
 	}
 
-	title := fmt.Sprintf("Daily Summary - %s", date.Format("2006-01-02"))
+	title := fmt.Sprintf("%s Summary - %s", summaryType, date.Format("2006-01-02"))
 	
 	err = createAISummary(email, date.Format("2006-01-02"), title, summary, categories, len(articles))
 	if err != nil {
 		return fmt.Errorf("failed to save AI summary: %v", err)
 	}
 
-	log.Infof("Generated AI summary for user %s on %s with %d articles", email, date.Format("2006-01-02"), len(articles))
+	log.Infof("Generated %s summary for user %s on %s with %d articles", 
+		summaryType, email, date.Format("2006-01-02"), len(articles))
 	return nil
 }
 
