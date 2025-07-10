@@ -161,7 +161,7 @@ func (t *AISummaryJob) Start() {
 			if now.Hour() == hour && now.Minute() >= minute && now.Minute() < minute+10 {
 				log.Infof("Generating AI summary for user %s at %v", pref.Email, now.Format(TimeFormat))
 
-				// 为昨天生成总结，因为今天的内容可能还不完整
+				// 生成前一天的总结（凌晨时段适合总结前一天的内容）
 				yesterday := now.AddDate(0, 0, -1)
 				err := generateDailyAISummary(pref.Email, yesterday)
 				if err != nil {

@@ -291,7 +291,7 @@ func getUserPreference(email string) (*UserPreference, error) {
 				EnableNotification: false,
 				AISummaryPrompt:    getDefaultAISummaryPrompt(),
 				EnableAISummary:    false,
-				AISummaryTime:      "22:00",
+				AISummaryTime:      "03:00",
 				CreateAt:           time.Now().Unix(),
 				UpdateAt:           time.Now().Unix(),
 			}

@@ -433,54 +433,5 @@ func ServerRouter() *gin.Engine {
 		})
 	})
 
-	r.POST("/ai-summary/generate", checklogin, func(c *gin.Context) {
-		email := c.GetString("email")
-		if email == "" {
-			c.String(http.StatusBadRequest, "invalid request")
-			return
-		}
-
-		// 使用上海时区的当前时间
-		now := time.Now().In(TimeZone)
-		
-		// 先尝试当天，如果没有文章则尝试昨天
-		today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, TimeZone)
-		yesterday := today.AddDate(0, 0, -1)
-		
-		var targetDate time.Time
-		var targetDateStr string
-		
-		// 检查今天是否有文章
-		todayArticles, err := getArticlesForAISummary(email, today)
-		if err == nil && len(todayArticles) > 0 {
-			targetDate = today
-			targetDateStr = "today"
-		} else {
-			// 没有今天的文章，尝试昨天
-			targetDate = yesterday
-			targetDateStr = "yesterday"
-		}
-		
-		log.Infof("Generating AI summary for user %s for %s (%s)", 
-			email, targetDateStr, targetDate.Format("2006-01-02"))
-		
-		err = generateDailyAISummary(email, targetDate)
-
-		var message string
-		if err != nil {
-			message = fmt.Sprintf("Failed to generate summary: %v", err)
-			log.Errorf("Failed to generate AI summary for %s: %v", email, err)
-		} else {
-			message = fmt.Sprintf("AI summary generated successfully for %s", targetDateStr)
-		}
-
-		summaries, _ := getAISummariesForUser(email, 30)
-		c.HTML(http.StatusOK, "ai-summary.html", gin.H{
-			"SiteURL":   SiteURL,
-			"Summaries": summaries,
-			"Message":   message,
-		})
-	})
-
 	return r
 }
