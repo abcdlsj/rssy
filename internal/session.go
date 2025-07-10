@@ -63,8 +63,8 @@ func setCookieSession(w http.ResponseWriter, name string, session Session) {
 	http.SetCookie(w, &cookie)
 }
 
-func getGithubAccessToken(code, rk string) (string, string, int) {
-	params := map[string]string{"client_id": GHClientID, "client_secret": GHSecret}
+func getGithubAccessToken(code, rk, clientID, clientSecret string) (string, string, int) {
+	params := map[string]string{"client_id": clientID, "client_secret": clientSecret}
 	if rk != "" {
 		params["refresh_token"] = rk
 		params["grant_type"] = "refresh_token"

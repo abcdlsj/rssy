@@ -12,7 +12,19 @@ import (
 )
 
 func scheduleSendDailyNotify(email string) {
-	url := fmt.Sprintf("https://www.notifyx.cn/api/v1/send/%s", NotiKey)
+	// 获取用户的通知设置
+	pref, err := getUserPreference(email)
+	if err != nil {
+		log.Errorf("Failed to get user preference for %s: %v", email, err)
+		return
+	}
+
+	if pref.NotificationKey == "" {
+		log.Errorf("No notification key configured for user %s", email)
+		return
+	}
+
+	url := fmt.Sprintf("https://www.notifyx.cn/api/v1/send/%s", pref.NotificationKey)
 
 	articles, err := getYesterdayHighlightedUnreadArticlesForUser(email)
 	if len(articles) == 0 || err != nil {
@@ -52,7 +64,7 @@ func scheduleSendDailyNotify(email string) {
 	}
 	defer resp.Body.Close()
 
-	var result map[string]interface{}
+	var result map[string]any
 	json.NewDecoder(resp.Body).Decode(&result)
 	log.Infof("notifyx result for %s: %v", email, result)
 }

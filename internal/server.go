@@ -20,13 +20,23 @@ func ServerRouter() *gin.Engine {
 	checklogin := func(c *gin.Context) {
 		// 调试模式下直接使用默认邮箱
 		if DebugMode {
-			c.Set("email", DebugEmail)
+			c.Set("email", DefaultEmail)
 			c.Next()
 			return
 		}
 
+		// 检查是否有有效的 GitHub 会话
 		session, err := checkRefreshGHStatus(c.Request)
 		if err != nil {
+			// 检查是否有用户启用了 GitHub 登录
+			hasGitHubLogin := checkAnyUserHasGitHubLogin()
+			if !hasGitHubLogin {
+				// 没有用户启用 GitHub 登录，使用默认邮箱
+				c.Set("email", DefaultEmail)
+				c.Next()
+				return
+			}
+			// 有用户启用了 GitHub 登录，重定向到登录页面
 			c.Redirect(http.StatusSeeOther, "/login")
 			return
 		}
@@ -283,13 +293,31 @@ func ServerRouter() *gin.Engine {
 	})
 
 	r.GET("/login", func(c *gin.Context) {
-		c.Redirect(http.StatusSeeOther, GHRedirectURL)
+		// 获取第一个启用 GitHub 登录的用户配置
+		var pref UserPreference
+		err := globalDB.Where("enable_github_login = ?", true).First(&pref).Error
+		if err != nil {
+			c.String(http.StatusInternalServerError, "<html><body><h1>No GitHub login configured</h1></body></html>")
+			return
+		}
+
+		redirectURL := fmt.Sprintf("https://github.com/login/oauth/authorize?client_id=%s&scope=user&redirect_uri=%s",
+			pref.GitHubClientID, fmt.Sprintf("%s/login/callback", SiteURL))
+		c.Redirect(http.StatusSeeOther, redirectURL)
 	})
 
 	r.GET("/login/callback", func(c *gin.Context) {
 		code := c.Query("code")
 
-		ak, sk, expiresIn := getGithubAccessToken(code, "")
+		// 获取第一个启用 GitHub 登录的用户配置
+		var pref UserPreference
+		err := globalDB.Where("enable_github_login = ?", true).First(&pref).Error
+		if err != nil {
+			c.String(http.StatusInternalServerError, "<html><body><h1>No GitHub login configured</h1></body></html>")
+			return
+		}
+
+		ak, sk, expiresIn := getGithubAccessToken(code, "", pref.GitHubClientID, pref.GitHubSecret)
 		if ak == "" {
 			c.String(http.StatusInternalServerError, "<html><body><h1>Failed to login</h1></body></html>")
 			return
@@ -394,9 +422,13 @@ func ServerRouter() *gin.Engine {
 			pref.EnableAutoCleanup = c.PostForm("enable_auto_cleanup") == "on"
 			pref.EnableNotification = c.PostForm("enable_notification") == "on"
 			pref.NotificationTime = c.PostForm("notification_time")
+			pref.NotificationKey = c.PostForm("notification_key")
 			pref.EnableAISummary = c.PostForm("enable_ai_summary") == "on"
 			pref.AISummaryTime = c.PostForm("ai_summary_time")
 			pref.AISummaryPrompt = c.PostForm("ai_summary_prompt")
+			pref.EnableGitHubLogin = c.PostForm("enable_github_login") == "on"
+			pref.GitHubClientID = c.PostForm("github_client_id")
+			pref.GitHubSecret = c.PostForm("github_secret")
 
 			err = updateUserPreference(email, pref)
 			if err != nil {

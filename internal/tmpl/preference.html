@@ -30,6 +30,9 @@
     
     <label for="notification_time">Notification time:</label>
     <input type="time" id="notification_time" name="notification_time" value="{{.Preference.NotificationTime}}" required>
+    
+    <label for="notification_key">Notification Key (NotifyX):</label>
+    <input type="text" id="notification_key" name="notification_key" value="{{.Preference.NotificationKey}}" placeholder="Enter your NotifyX key">
   </fieldset>
 
   <fieldset>
@@ -45,6 +48,21 @@
     
     <label for="ai_summary_prompt">AI summary prompt:</label>
     <textarea id="ai_summary_prompt" name="ai_summary_prompt" rows="10" cols="80" required>{{.Preference.AISummaryPrompt}}</textarea>
+  </fieldset>
+
+  <fieldset>
+    <legend>GitHub Login Settings</legend>
+    
+    <label>
+      <input type="checkbox" name="enable_github_login" {{if .Preference.EnableGitHubLogin}}checked{{end}}>
+      Enable GitHub login
+    </label>
+    
+    <label for="github_client_id">GitHub Client ID:</label>
+    <input type="text" id="github_client_id" name="github_client_id" value="{{.Preference.GitHubClientID}}" placeholder="Enter GitHub App Client ID">
+    
+    <label for="github_secret">GitHub Client Secret:</label>
+    <input type="password" id="github_secret" name="github_secret" value="{{.Preference.GitHubSecret}}" placeholder="Enter GitHub App Secret">
   </fieldset>
 
   <div class="form-container">

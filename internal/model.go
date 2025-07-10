@@ -84,9 +84,13 @@ type UserPreference struct {
 	EnableAutoCleanup  bool   `json:"enable_auto_cleanup" gorm:"column:enable_auto_cleanup;default:false"`
 	NotificationTime   string `json:"notification_time" gorm:"column:notification_time;default:'08:00'"`
 	EnableNotification bool   `json:"enable_notification" gorm:"column:enable_notification;default:false"`
+	NotificationKey    string `json:"notification_key" gorm:"column:notification_key;type:text"`
 	AISummaryPrompt    string `json:"ai_summary_prompt" gorm:"column:ai_summary_prompt;type:text"`
 	EnableAISummary    bool   `json:"enable_ai_summary" gorm:"column:enable_ai_summary;default:false"`
 	AISummaryTime      string `json:"ai_summary_time" gorm:"column:ai_summary_time;default:'22:00'"`
+	EnableGitHubLogin  bool   `json:"enable_github_login" gorm:"column:enable_github_login;default:false"`
+	GitHubClientID     string `json:"github_client_id" gorm:"column:github_client_id;type:text"`
+	GitHubSecret       string `json:"github_secret" gorm:"column:github_secret;type:text"`
 	CreateAt           int64  `json:"create_at" gorm:"column:create_at"`
 	UpdateAt           int64  `json:"update_at" gorm:"column:update_at"`
 }
@@ -297,9 +301,13 @@ func getUserPreference(email string) (*UserPreference, error) {
 				EnableAutoCleanup:  false,
 				NotificationTime:   "08:00",
 				EnableNotification: false,
+				NotificationKey:    "",
 				AISummaryPrompt:    getDefaultAISummaryPrompt(),
 				EnableAISummary:    false,
 				AISummaryTime:      "03:00",
+				EnableGitHubLogin:  false,
+				GitHubClientID:     "",
+				GitHubSecret:       "",
 				CreateAt:           time.Now().Unix(),
 				UpdateAt:           time.Now().Unix(),
 			}
@@ -550,6 +558,12 @@ func getFeedMetaWithCache(feedID int64) FeedMetaCache {
 
 	GlobalMemoryCache.Set(SceneFeedMeta, feedID, meta)
 	return meta
+}
+
+func checkAnyUserHasGitHubLogin() bool {
+	var count int64
+	globalDB.Model(&UserPreference{}).Where("enable_github_login = ?", true).Count(&count)
+	return count > 0
 }
 
 func getYesterdayHighlightedUnreadArticlesForUser(email string) ([]Article, error) {

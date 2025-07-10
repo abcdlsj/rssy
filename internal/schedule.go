@@ -11,7 +11,7 @@ import (
 
 var (
 	fetchParseJob = FeedParseJob{
-		emails: []string{"github@songjian.li"},
+		emails: []string{DefaultEmail},
 		tk:     time.NewTicker(30 * time.Minute),
 	}
 

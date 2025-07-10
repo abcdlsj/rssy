@@ -10,9 +10,6 @@ import (
 )
 
 var (
-	GHRedirectURL = fmt.Sprintf("https://github.com/login/oauth/authorize?client_id=%s&scope=user&redirect_uri=%s",
-		GHClientID, fmt.Sprintf("%s/login/callback", SiteURL))
-
 	CipherKey = []byte(orenv("CIPHER_KEY", "0b661f0874117724d1e50746c9fe65d9")) // 32
 )
 
