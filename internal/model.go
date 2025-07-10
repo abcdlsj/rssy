@@ -111,6 +111,7 @@ type FeedMetaCache struct {
 
 const (
 	SceneFeedMeta = "feed_meta"
+	SceneUserPref = "user_pref"
 )
 
 func updateFeed(email, id string, hideUnread, enableReadability, highlight bool) error {
@@ -279,6 +280,13 @@ func parseFeedAndSaveArticles(fd *Feed) ([]*Article, error) {
 }
 
 func getUserPreference(email string) (*UserPreference, error) {
+	// 先从缓存中获取
+	if value, exists := GlobalMemoryCache.Get(SceneUserPref, email); exists {
+		if pref, ok := value.(*UserPreference); ok {
+			return pref, nil
+		}
+	}
+
 	var pref UserPreference
 	err := globalDB.Where("email = ?", email).First(&pref).Error
 	if err != nil {
@@ -303,6 +311,9 @@ func getUserPreference(email string) (*UserPreference, error) {
 			return nil, fmt.Errorf("could not get user preference: %v", err)
 		}
 	}
+
+	// 缓存结果
+	GlobalMemoryCache.Set(SceneUserPref, email, &pref)
 	return &pref, nil
 }
 
@@ -312,6 +323,9 @@ func updateUserPreference(email string, pref *UserPreference) error {
 	if err != nil {
 		return fmt.Errorf("could not update user preference: %v", err)
 	}
+	
+	// 更新后删除缓存
+	GlobalMemoryCache.Delete(SceneUserPref, email)
 	return nil
 }
 
@@ -538,17 +552,17 @@ func getFeedMetaWithCache(feedID int64) FeedMetaCache {
 	return meta
 }
 
-func getYesterdayHighlightedUnreadArticles() ([]Article, error) {
-	// 获取高亮的 feed IDs
+func getYesterdayHighlightedUnreadArticlesForUser(email string) ([]Article, error) {
+	// 获取该用户高亮的 feed IDs
 	var highlightedFeedIDs []int64
 	if err := globalDB.Model(&Feed{}).
-		Where("highlight = ?", true).
+		Where("email = ? AND highlight = ?", email, true).
 		Pluck("id", &highlightedFeedIDs).Error; err != nil {
-		return nil, fmt.Errorf("failed to fetch highlighted feed IDs: %v", err)
+		return nil, fmt.Errorf("failed to fetch highlighted feed IDs for user %s: %v", email, err)
 	}
 
 	if len(highlightedFeedIDs) == 0 {
-		return nil, fmt.Errorf("no highlighted feeds found")
+		return nil, fmt.Errorf("no highlighted feeds found for user %s", email)
 	}
 
 	// 使用正确的时区
@@ -557,13 +571,14 @@ func getYesterdayHighlightedUnreadArticles() ([]Article, error) {
 	end := start.Add(24 * time.Hour)
 
 	var articles []Article
-	err := globalDB.Where("publish_at >= ? AND publish_at < ? AND read = ? AND deleted = ? AND feed_id IN ?",
-		start.Unix(), end.Unix(), false, false, highlightedFeedIDs).
+	err := globalDB.Where("email = ? AND publish_at >= ? AND publish_at < ? AND read = ? AND deleted = ? AND feed_id IN ?",
+		email, start.Unix(), end.Unix(), false, false, highlightedFeedIDs).
 		Find(&articles).Error
 
 	if err != nil {
-		return nil, fmt.Errorf("failed to fetch articles: %v", err)
+		return nil, fmt.Errorf("failed to fetch articles for user %s: %v", email, err)
 	}
 
 	return articles, nil
 }
+

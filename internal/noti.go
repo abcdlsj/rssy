@@ -11,12 +11,12 @@ import (
 	"github.com/charmbracelet/log"
 )
 
-func scheduleSendDailyNotify() {
+func scheduleSendDailyNotify(email string) {
 	url := fmt.Sprintf("https://www.notifyx.cn/api/v1/send/%s", NotiKey)
 
-	articles, err := getYesterdayHighlightedUnreadArticles()
+	articles, err := getYesterdayHighlightedUnreadArticlesForUser(email)
 	if len(articles) == 0 || err != nil {
-		log.Errorf("getYesterdayHighlightedUnreadArticles failed, err: %s", err)
+		log.Errorf("getYesterdayHighlightedUnreadArticlesForUser failed for %s, err: %s", email, err)
 		return
 	}
 
@@ -29,7 +29,7 @@ func scheduleSendDailyNotify() {
 	}
 
 	message := map[string]string{
-		"title":       "每日 RSS 摘要",
+		"title":       fmt.Sprintf("每日 RSS 摘要 - %s", email),
 		"content":     contentBuilder.String(),
 		"description": fmt.Sprintf("共 %d 篇文章", len(articles)),
 	}
@@ -54,5 +54,5 @@ func scheduleSendDailyNotify() {
 
 	var result map[string]interface{}
 	json.NewDecoder(resp.Body).Decode(&result)
-	log.Infof("notifyx result %v", result)
+	log.Infof("notifyx result for %s: %v", email, result)
 }
