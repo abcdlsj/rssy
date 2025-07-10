@@ -18,4 +18,8 @@ var (
 	NotifyTime = orenv("NOTIFY_TIME", "08:00")
 
 	TimeZone = time.FixedZone("CST", 8*3600)
+
+	// 本地调试模式，跳过OAuth登录
+	DebugMode     = os.Getenv("DEBUG_MODE") == "true"
+	DebugEmail    = orenv("DEBUG_EMAIL", "github@songjian.li")
 )

@@ -1,0 +1,173 @@
+{{template "head" .}}
+<h1>AI Summary</h1>
+
+<div class="navbar">
+  <a href="{{.SiteURL}}/">Unreads</a>
+  <a href="{{.SiteURL}}/feed">Feeds</a>
+  <a href="{{.SiteURL}}/stream">Stream</a>
+  <a href="{{.SiteURL}}/preference">Preferences</a>
+  <a href="{{.SiteURL}}/ai-summary">AI Summary</a>
+</div>
+
+{{if .Summaries}}
+<div class="summaries-container">
+  {{range .Summaries}}
+  <div class="summary-item">
+    <div class="summary-header">
+      <h2>{{.Title}}</h2>
+      <div class="summary-meta">
+        <span class="summary-date">{{.Date}}</span>
+        <span class="summary-count">{{.ArticleCount}} articles</span>
+      </div>
+    </div>
+    
+    <div class="summary-content">
+      {{range $line := splitLines .Summary}}
+        {{if ne $line ""}}
+          <p>{{$line}}</p>
+        {{end}}
+      {{end}}
+    </div>
+    
+    {{if .Categories}}
+    <div class="summary-categories">
+      <h4>Categories:</h4>
+      <div class="categories-content">
+        {{range $line := splitLines .Categories}}
+          {{if ne $line ""}}
+            <p>{{$line}}</p>
+          {{end}}
+        {{end}}
+      </div>
+    </div>
+    {{end}}
+  </div>
+  {{end}}
+</div>
+{{else}}
+<div class="no-summaries">
+  <p>No AI summaries available yet. Enable AI summary in <a href="{{.SiteURL}}/preference">Preferences</a> to start generating daily summaries.</p>
+</div>
+{{end}}
+
+<div class="manual-trigger">
+  <form method="post" action="{{.SiteURL}}/ai-summary/generate">
+    <button type="submit">Generate Summary for Today</button>
+  </form>
+</div>
+
+{{if .Message}}
+<div class="message">{{.Message}}</div>
+{{end}}
+
+<style>
+  .summaries-container {
+    max-width: 800px;
+    margin: 0 auto;
+  }
+  
+  .summary-item {
+    margin-bottom: 30px;
+    padding: 20px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    background: #fafafa;
+  }
+  
+  .summary-header {
+    border-bottom: 1px solid #ddd;
+    padding-bottom: 10px;
+    margin-bottom: 15px;
+  }
+  
+  .summary-header h2 {
+    margin: 0 0 5px 0;
+    color: #333;
+  }
+  
+  .summary-meta {
+    font-size: 0.9em;
+    color: #666;
+  }
+  
+  .summary-date {
+    font-weight: bold;
+  }
+  
+  .summary-count {
+    margin-left: 15px;
+  }
+  
+  .summary-content {
+    line-height: 1.6;
+    margin-bottom: 15px;
+  }
+  
+  .summary-content p {
+    margin-bottom: 10px;
+  }
+  
+  .summary-categories {
+    border-top: 1px solid #ddd;
+    padding-top: 15px;
+  }
+  
+  .summary-categories h4 {
+    margin: 0 0 10px 0;
+    color: #555;
+  }
+  
+  .categories-content {
+    font-size: 0.95em;
+    color: #666;
+  }
+  
+  .categories-content p {
+    margin-bottom: 5px;
+  }
+  
+  .no-summaries {
+    text-align: center;
+    padding: 40px;
+    color: #666;
+  }
+  
+  .no-summaries a {
+    color: #007bff;
+    text-decoration: none;
+  }
+  
+  .no-summaries a:hover {
+    text-decoration: underline;
+  }
+  
+  .manual-trigger {
+    text-align: center;
+    margin: 30px 0;
+  }
+  
+  .manual-trigger button {
+    padding: 10px 20px;
+    background: #007bff;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 16px;
+  }
+  
+  .manual-trigger button:hover {
+    background: #0056b3;
+  }
+  
+  .message {
+    margin: 20px auto;
+    max-width: 800px;
+    padding: 10px;
+    border-radius: 5px;
+    background: #d4edda;
+    border: 1px solid #c3e6cb;
+    color: #155724;
+    text-align: center;
+  }
+</style>

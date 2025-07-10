@@ -4,6 +4,7 @@ import (
 	"embed"
 	"fmt"
 	"html/template"
+	"strings"
 	"time"
 
 	"github.com/dustin/go-humanize"
@@ -57,6 +58,10 @@ var (
 
 		"getFeedHideUnread": func(feedID int64) bool {
 			return getFeedMetaWithCache(feedID).HideUnread
+		},
+
+		"splitLines": func(text string) []string {
+			return strings.Split(text, "\n")
 		},
 	}
 

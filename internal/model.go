@@ -41,7 +41,7 @@ func init() {
 	}
 
 	if autoMigrate {
-		err = db.AutoMigrate(&Article{}, &Feed{})
+		err = db.AutoMigrate(&Article{}, &Feed{}, &UserPreference{}, &AISummary{})
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -75,6 +75,32 @@ type Feed struct {
 	HideUnread        bool   `json:"hide_unread" gorm:"column:hide_unread"`
 	EnableReadability bool   `json:"enable_readability" gorm:"column:enable_readability"`
 	Highlight         bool   `json:"highlight" gorm:"column:highlight"`
+}
+
+type UserPreference struct {
+	ID                 int64  `json:"id" gorm:"primaryKey;column:id"`
+	Email              string `json:"email" gorm:"column:email;index"`
+	CleanupExpiredDays int    `json:"cleanup_expired_days" gorm:"column:cleanup_expired_days;default:30"`
+	EnableAutoCleanup  bool   `json:"enable_auto_cleanup" gorm:"column:enable_auto_cleanup;default:false"`
+	NotificationTime   string `json:"notification_time" gorm:"column:notification_time;default:'08:00'"`
+	EnableNotification bool   `json:"enable_notification" gorm:"column:enable_notification;default:false"`
+	AISummaryPrompt    string `json:"ai_summary_prompt" gorm:"column:ai_summary_prompt;type:text"`
+	EnableAISummary    bool   `json:"enable_ai_summary" gorm:"column:enable_ai_summary;default:false"`
+	AISummaryTime      string `json:"ai_summary_time" gorm:"column:ai_summary_time;default:'22:00'"`
+	CreateAt           int64  `json:"create_at" gorm:"column:create_at"`
+	UpdateAt           int64  `json:"update_at" gorm:"column:update_at"`
+}
+
+type AISummary struct {
+	ID           int64  `json:"id" gorm:"primaryKey;column:id"`
+	Email        string `json:"email" gorm:"column:email;index"`
+	Date         string `json:"date" gorm:"column:date;index"`
+	Title        string `json:"title" gorm:"column:title"`
+	Summary      string `json:"summary" gorm:"column:summary;type:text"`
+	Categories   string `json:"categories" gorm:"column:categories;type:text"`
+	ArticleCount int    `json:"article_count" gorm:"column:article_count"`
+	CreateAt     int64  `json:"create_at" gorm:"column:create_at"`
+	UpdateAt     int64  `json:"update_at" gorm:"column:update_at"`
 }
 
 type FeedMetaCache struct {
@@ -249,6 +275,125 @@ func parseFeedAndSaveArticles(fd *Feed) ([]*Article, error) {
 		return nil, fmt.Errorf("could not parse feed and save articles: %v", err)
 	}
 
+	return articles, nil
+}
+
+func getUserPreference(email string) (*UserPreference, error) {
+	var pref UserPreference
+	err := globalDB.Where("email = ?", email).First(&pref).Error
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			pref = UserPreference{
+				Email:              email,
+				CleanupExpiredDays: 30,
+				EnableAutoCleanup:  false,
+				NotificationTime:   "08:00",
+				EnableNotification: false,
+				AISummaryPrompt:    getDefaultAISummaryPrompt(),
+				EnableAISummary:    false,
+				AISummaryTime:      "22:00",
+				CreateAt:           time.Now().Unix(),
+				UpdateAt:           time.Now().Unix(),
+			}
+			err = globalDB.Create(&pref).Error
+			if err != nil {
+				return nil, fmt.Errorf("could not create user preference: %v", err)
+			}
+		} else {
+			return nil, fmt.Errorf("could not get user preference: %v", err)
+		}
+	}
+	return &pref, nil
+}
+
+func updateUserPreference(email string, pref *UserPreference) error {
+	pref.UpdateAt = time.Now().Unix()
+	err := globalDB.Where("email = ?", email).Updates(pref).Error
+	if err != nil {
+		return fmt.Errorf("could not update user preference: %v", err)
+	}
+	return nil
+}
+
+func cleanupExpiredArticles(email string, days int) (int64, error) {
+	expiredTime := time.Now().AddDate(0, 0, -days).Unix()
+	result := globalDB.Where("email = ? AND read = false AND publish_at < ?", email, expiredTime).Delete(&Article{})
+	if result.Error != nil {
+		return 0, fmt.Errorf("could not cleanup expired articles: %v", result.Error)
+	}
+	return result.RowsAffected, nil
+}
+
+func cleanupReadArticles(email string) (int64, error) {
+	result := globalDB.Where("email = ? AND read = true", email).Delete(&Article{})
+	if result.Error != nil {
+		return 0, fmt.Errorf("could not cleanup read articles: %v", result.Error)
+	}
+	return result.RowsAffected, nil
+}
+
+func getDefaultAISummaryPrompt() string {
+	return `请分析并总结今天的RSS文章内容，按照以下要求：
+
+1. 整体概述：简要概括今天文章的主要话题和趋势
+2. 分类整理：将文章按主题分类（如：技术、科学、商业、社会等）
+3. 重点摘要：挑选3-5篇最重要或最有价值的文章进行详细摘要
+4. 关键观点：提取今天文章中的关键观点和见解
+5. 趋势分析：如果发现某些话题或观点重复出现，请指出
+
+请使用清晰的结构化格式输出，方便阅读和理解。`
+}
+
+func getAISummariesForUser(email string, limit int) ([]AISummary, error) {
+	var summaries []AISummary
+	err := globalDB.Where("email = ?", email).Order("date desc").Limit(limit).Find(&summaries).Error
+	if err != nil {
+		return nil, fmt.Errorf("could not get AI summaries: %v", err)
+	}
+	return summaries, nil
+}
+
+func createAISummary(email, date, title, summary, categories string, articleCount int) error {
+	aiSummary := AISummary{
+		Email:        email,
+		Date:         date,
+		Title:        title,
+		Summary:      summary,
+		Categories:   categories,
+		ArticleCount: articleCount,
+		CreateAt:     time.Now().Unix(),
+		UpdateAt:     time.Now().Unix(),
+	}
+
+	err := globalDB.Where("email = ? AND date = ?", email, date).First(&AISummary{}).Error
+	if err == gorm.ErrRecordNotFound {
+		err = globalDB.Create(&aiSummary).Error
+		if err != nil {
+			return fmt.Errorf("could not create AI summary: %v", err)
+		}
+	} else if err == nil {
+		aiSummary.UpdateAt = time.Now().Unix()
+		err = globalDB.Where("email = ? AND date = ?", email, date).Updates(&aiSummary).Error
+		if err != nil {
+			return fmt.Errorf("could not update AI summary: %v", err)
+		}
+	} else {
+		return fmt.Errorf("could not check AI summary: %v", err)
+	}
+
+	return nil
+}
+
+func getArticlesForAISummary(email string, date time.Time) ([]Article, error) {
+	start := time.Date(date.Year(), date.Month(), date.Day(), 0, 0, 0, 0, date.Location())
+	end := start.Add(24 * time.Hour)
+
+	var articles []Article
+	err := globalDB.Where("email = ? AND publish_at >= ? AND publish_at < ? AND deleted = false",
+		email, start.Unix(), end.Unix()).Find(&articles).Error
+	if err != nil {
+		return nil, fmt.Errorf("could not get articles for AI summary: %v", err)
+	}
 	return articles, nil
 }
 

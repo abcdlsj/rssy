@@ -18,6 +18,13 @@ func ServerRouter() *gin.Engine {
 	r.SetHTMLTemplate(tmpl)
 
 	checklogin := func(c *gin.Context) {
+		// 调试模式下直接使用默认邮箱
+		if DebugMode {
+			c.Set("email", DebugEmail)
+			c.Next()
+			return
+		}
+
 		session, err := checkRefreshGHStatus(c.Request)
 		if err != nil {
 			c.Redirect(http.StatusSeeOther, "/login")
@@ -25,7 +32,6 @@ func ServerRouter() *gin.Engine {
 		}
 
 		c.Set("email", session.Email)
-
 		c.Next()
 	}
 
@@ -320,6 +326,136 @@ func ServerRouter() *gin.Engine {
 			"SiteURL":       SiteURL,
 			"Groups":        buzzingFeed.Groups,
 			"LastFetchTime": globalBuzzingFeedUpdatedAt.Unix(),
+		})
+	})
+
+	r.GET("/preference", checklogin, func(c *gin.Context) {
+		email := c.GetString("email")
+		if email == "" {
+			c.String(http.StatusBadRequest, "invalid request")
+			return
+		}
+
+		pref, err := getUserPreference(email)
+		if err != nil {
+			c.String(http.StatusInternalServerError, "Failed to get preferences: %v", err)
+			return
+		}
+
+		c.HTML(http.StatusOK, "preference.html", gin.H{
+			"SiteURL":    SiteURL,
+			"Preference": pref,
+		})
+	})
+
+	r.POST("/preference/update", checklogin, func(c *gin.Context) {
+		email := c.GetString("email")
+		if email == "" {
+			c.String(http.StatusBadRequest, "invalid request")
+			return
+		}
+
+		action := c.PostForm("action")
+		var message string
+
+		switch action {
+		case "cleanup_expired":
+			days, err := strconv.Atoi(c.PostForm("cleanup_expired_days"))
+			if err != nil || days <= 0 {
+				days = 30
+			}
+			deleted, err := cleanupExpiredArticles(email, days)
+			if err != nil {
+				message = fmt.Sprintf("Cleanup failed: %v", err)
+			} else {
+				message = fmt.Sprintf("Deleted %d expired articles", deleted)
+			}
+
+		case "cleanup_read":
+			deleted, err := cleanupReadArticles(email)
+			if err != nil {
+				message = fmt.Sprintf("Cleanup failed: %v", err)
+			} else {
+				message = fmt.Sprintf("Deleted %d read articles", deleted)
+			}
+
+		case "save":
+			pref, err := getUserPreference(email)
+			if err != nil {
+				c.String(http.StatusInternalServerError, "Failed to get preferences: %v", err)
+				return
+			}
+
+			pref.CleanupExpiredDays, _ = strconv.Atoi(c.PostForm("cleanup_expired_days"))
+			if pref.CleanupExpiredDays <= 0 {
+				pref.CleanupExpiredDays = 30
+			}
+
+			pref.EnableAutoCleanup = c.PostForm("enable_auto_cleanup") == "on"
+			pref.EnableNotification = c.PostForm("enable_notification") == "on"
+			pref.NotificationTime = c.PostForm("notification_time")
+			pref.EnableAISummary = c.PostForm("enable_ai_summary") == "on"
+			pref.AISummaryTime = c.PostForm("ai_summary_time")
+			pref.AISummaryPrompt = c.PostForm("ai_summary_prompt")
+
+			err = updateUserPreference(email, pref)
+			if err != nil {
+				message = fmt.Sprintf("Failed to save preferences: %v", err)
+			} else {
+				message = "Preferences saved successfully"
+			}
+		}
+
+		pref, _ := getUserPreference(email)
+		c.HTML(http.StatusOK, "preference.html", gin.H{
+			"SiteURL":    SiteURL,
+			"Preference": pref,
+			"Message":    message,
+		})
+	})
+
+	r.GET("/ai-summary", checklogin, func(c *gin.Context) {
+		email := c.GetString("email")
+		if email == "" {
+			c.String(http.StatusBadRequest, "invalid request")
+			return
+		}
+
+		summaries, err := getAISummariesForUser(email, 30)
+		if err != nil {
+			log.Errorf("Failed to get AI summaries: %v", err)
+			summaries = []AISummary{}
+		}
+
+		c.HTML(http.StatusOK, "ai-summary.html", gin.H{
+			"SiteURL":   SiteURL,
+			"Summaries": summaries,
+		})
+	})
+
+	r.POST("/ai-summary/generate", checklogin, func(c *gin.Context) {
+		email := c.GetString("email")
+		if email == "" {
+			c.String(http.StatusBadRequest, "invalid request")
+			return
+		}
+
+		now := time.Now()
+		err := generateDailyAISummary(email, now)
+
+		var message string
+		if err != nil {
+			message = fmt.Sprintf("Failed to generate summary: %v", err)
+			log.Errorf("Failed to generate AI summary for %s: %v", email, err)
+		} else {
+			message = "AI summary generated successfully"
+		}
+
+		summaries, _ := getAISummariesForUser(email, 30)
+		c.HTML(http.StatusOK, "ai-summary.html", gin.H{
+			"SiteURL":   SiteURL,
+			"Summaries": summaries,
+			"Message":   message,
 		})
 	})
 
