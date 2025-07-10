@@ -4,13 +4,8 @@
     {{template "head" .}}
   </head>
   <body>
-    <div class="navbar">
-      <a href="/">Home</a>
-      <a href="/feed">Feeds</a>
-      <a href="/stream">Stream</a>
-      <a href="/preference">Preferences</a>
-      <a href="/ai-summary">Summary</a>
-    </div>
+    {{template "nav" .}}
+    <h1>Stream</h1>
     <div class="stream-meta">
       <span>from <a href="https://buzzing.cc/" target="_blank">buzzing.cc</a></span>
       <span> (last fetched at {{.LastFetchTime | timeformat}})</span>

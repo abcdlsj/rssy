@@ -21,13 +21,7 @@
     </script>
   </head>
   <body>
-    <div class="navbar">
-      <a href="/">Home</a>
-      <a href="/feed">Feeds</a>
-      <a href="/stream">Stream</a>
-      <a href="/preference">Preferences</a>
-      <a href="/ai-summary">Summary</a>
-    </div>
+    {{template "nav" .}}
     <h1>{{.Headline}}</h1>
     {{if .DisplayRefresh}}
     <div class="updatefeed-container">
