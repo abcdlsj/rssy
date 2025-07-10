@@ -44,10 +44,6 @@ func aiCompletion(prompt, content string) (string, error) {
 }
 
 func generateDailyAISummary(email string, date time.Time) error {
-	if OPENAI_API_KEY == "" {
-		return fmt.Errorf("OPENAI_API_KEY is not set")
-	}
-
 	pref, err := getUserPreference(email)
 	if err != nil {
 		return fmt.Errorf("failed to get user preference: %v", err)
@@ -64,18 +60,31 @@ func generateDailyAISummary(email string, date time.Time) error {
 
 	if len(articles) == 0 {
 		log.Infof("No articles found for AI summary for user %s on %s", email, date.Format("2006-01-02"))
-		return nil
+		return fmt.Errorf("no articles found for date %s", date.Format("2006-01-02"))
 	}
 
-	articlesText := formatArticlesForAI(articles)
-	summary, err := aiCompletion(pref.AISummaryPrompt, articlesText)
-	if err != nil {
-		return fmt.Errorf("failed to generate AI summary: %v", err)
+	// 如果没有OpenAI API Key，创建一个简单的总结
+	var summary string
+	var categories string
+	
+	if OPENAI_API_KEY == "" {
+		log.Infof("No OpenAI API key found, generating simple summary")
+		summary = generateSimpleSummary(articles)
+		categories = generateSimpleCategories(articles)
+	} else {
+		articlesText := formatArticlesForAI(articles)
+		summary, err = aiCompletion(pref.AISummaryPrompt, articlesText)
+		if err != nil {
+			log.Errorf("AI completion failed, falling back to simple summary: %v", err)
+			summary = generateSimpleSummary(articles)
+			categories = generateSimpleCategories(articles)
+		} else {
+			categories = extractCategories(summary)
+		}
 	}
 
 	title := fmt.Sprintf("Daily Summary - %s", date.Format("2006-01-02"))
-	categories := extractCategories(summary)
-
+	
 	err = createAISummary(email, date.Format("2006-01-02"), title, summary, categories, len(articles))
 	if err != nil {
 		return fmt.Errorf("failed to save AI summary: %v", err)
@@ -129,5 +138,50 @@ func extractCategories(summary string) string {
 		}
 	}
 
+	return strings.Join(categories, "\n")
+}
+
+func generateSimpleSummary(articles []Article) string {
+	var builder strings.Builder
+	builder.WriteString(fmt.Sprintf("今日共有 %d 篇文章\n\n", len(articles)))
+	
+	// 按来源分组统计
+	sourceCount := make(map[string]int)
+	for _, article := range articles {
+		sourceCount[article.Name]++
+	}
+	
+	builder.WriteString("文章来源分布：\n")
+	for source, count := range sourceCount {
+		builder.WriteString(fmt.Sprintf("- %s: %d 篇\n", source, count))
+	}
+	
+	builder.WriteString("\n主要文章：\n")
+	for i, article := range articles {
+		if i >= 5 { // 只显示前5篇
+			break
+		}
+		builder.WriteString(fmt.Sprintf("%d. %s (来源: %s)\n", i+1, article.Title, article.Name))
+	}
+	
+	if len(articles) > 5 {
+		builder.WriteString(fmt.Sprintf("... 还有 %d 篇文章\n", len(articles)-5))
+	}
+	
+	return builder.String()
+}
+
+func generateSimpleCategories(articles []Article) string {
+	// 简单的分类逻辑：按来源分类
+	sourceCount := make(map[string]int)
+	for _, article := range articles {
+		sourceCount[article.Name]++
+	}
+	
+	var categories []string
+	for source, count := range sourceCount {
+		categories = append(categories, fmt.Sprintf("- %s: %d 篇文章", source, count))
+	}
+	
 	return strings.Join(categories, "\n")
 }
