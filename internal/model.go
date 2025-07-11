@@ -290,10 +290,12 @@ func getUserPreference(email string) (*UserPreference, error) {
 	// 先从缓存中获取
 	if value, exists := GlobalMemoryCache.Get(SceneUserPref, email); exists {
 		if pref, ok := value.(*UserPreference); ok {
+			log.Infof("User preference loaded from cache: %s", email)
 			return pref, nil
 		}
 	}
 
+	log.Infof("User preference loading from database: %s", email)
 	var pref UserPreference
 	err := globalDB.Where("email = ?", email).First(&pref).Error
 	if err != nil {
@@ -332,13 +334,16 @@ func getUserPreference(email string) (*UserPreference, error) {
 
 func updateUserPreference(email string, pref *UserPreference) error {
 	pref.UpdateAt = time.Now().Unix()
-	err := globalDB.Where("email = ?", email).Updates(pref).Error
+	
+	// 使用Select指定要更新的字段，包括零值字段
+	err := globalDB.Model(&UserPreference{}).Where("email = ?", email).Select("*").Updates(pref).Error
 	if err != nil {
 		return fmt.Errorf("could not update user preference: %v", err)
 	}
 
 	// 更新后删除缓存
 	GlobalMemoryCache.Delete(SceneUserPref, email)
+	log.Infof("Cache deleted for user preference: %s", email)
 	return nil
 }
 

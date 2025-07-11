@@ -420,11 +420,16 @@ func ServerRouter() *gin.Engine {
 
 			// Admin-only settings
 			if isAdminUser(email) {
+				log.Infof("Processing admin settings for user: %s", email)
+				log.Infof("enable_github_login form value: %s", c.PostForm("enable_github_login"))
 				pref.EnableGitHubLogin = c.PostForm("enable_github_login") == "on"
 				pref.GitHubClientID = c.PostForm("github_client_id")
 				pref.GitHubSecret = c.PostForm("github_secret")
 				pref.OpenAIAPIKey = c.PostForm("openai_api_key")
 				pref.OpenAIEndpoint = c.PostForm("openai_endpoint")
+				log.Infof("Set EnableGitHubLogin to: %t", pref.EnableGitHubLogin)
+			} else {
+				log.Infof("User %s is not admin, skipping admin settings", email)
 			}
 
 			err = updateUserPreference(email, pref)
