@@ -50,12 +50,23 @@
     <textarea id="ai_summary_prompt" name="ai_summary_prompt" rows="10" cols="80" required>{{.Preference.AISummaryPrompt}}</textarea>
   </fieldset>
 
-  <fieldset>
-    <legend>GitHub Login Settings</legend>
+  {{if .IsAdmin}}
+  <fieldset class="admin-only">
+    <legend>🔒 Admin Settings - OpenAI Configuration</legend>
+    
+    <label for="openai_api_key">OpenAI API Key:</label>
+    <input type="password" id="openai_api_key" name="openai_api_key" value="{{.Preference.OpenAIAPIKey}}" placeholder="Enter OpenAI API Key">
+    
+    <label for="openai_endpoint">OpenAI Endpoint (optional):</label>
+    <input type="text" id="openai_endpoint" name="openai_endpoint" value="{{.Preference.OpenAIEndpoint}}" placeholder="https://api.openai.com/v1 (default)">
+  </fieldset>
+
+  <fieldset class="admin-only">
+    <legend>🔒 Admin Settings - GitHub Login</legend>
     
     <label>
       <input type="checkbox" name="enable_github_login" {{if .Preference.EnableGitHubLogin}}checked{{end}}>
-      Enable GitHub login
+      Enable GitHub login for all users
     </label>
     
     <label for="github_client_id">GitHub Client ID:</label>
@@ -64,6 +75,7 @@
     <label for="github_secret">GitHub Client Secret:</label>
     <input type="password" id="github_secret" name="github_secret" value="{{.Preference.GitHubSecret}}" placeholder="Enter GitHub App Secret">
   </fieldset>
+  {{end}}
 
   <div class="form-container">
     <button type="submit" name="action" value="save">Save Settings</button>
@@ -80,6 +92,16 @@
     padding: 15px;
     border: 1px solid #ccc;
     border-radius: 5px;
+  }
+  
+  .admin-only {
+    border-color: #ff6b6b;
+    background-color: #fff5f5;
+  }
+  
+  .admin-only legend {
+    color: #d63384;
+    font-weight: bold;
   }
   
   legend {

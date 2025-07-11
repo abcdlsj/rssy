@@ -293,31 +293,29 @@ func ServerRouter() *gin.Engine {
 	})
 
 	r.GET("/login", func(c *gin.Context) {
-		// 获取第一个启用 GitHub 登录的用户配置
-		var pref UserPreference
-		err := globalDB.Where("enable_github_login = ?", true).First(&pref).Error
-		if err != nil {
-			c.String(http.StatusInternalServerError, "<html><body><h1>No GitHub login configured</h1></body></html>")
+		// 使用管理员用户的 GitHub 登录配置
+		adminPref, err := getAdminPreference()
+		if err != nil || !adminPref.EnableGitHubLogin {
+			c.String(http.StatusInternalServerError, "<html><body><h1>GitHub login not enabled</h1></body></html>")
 			return
 		}
 
 		redirectURL := fmt.Sprintf("https://github.com/login/oauth/authorize?client_id=%s&scope=user&redirect_uri=%s",
-			pref.GitHubClientID, fmt.Sprintf("%s/login/callback", SiteURL))
+			adminPref.GitHubClientID, fmt.Sprintf("%s/login/callback", SiteURL))
 		c.Redirect(http.StatusSeeOther, redirectURL)
 	})
 
 	r.GET("/login/callback", func(c *gin.Context) {
 		code := c.Query("code")
 
-		// 获取第一个启用 GitHub 登录的用户配置
-		var pref UserPreference
-		err := globalDB.Where("enable_github_login = ?", true).First(&pref).Error
-		if err != nil {
-			c.String(http.StatusInternalServerError, "<html><body><h1>No GitHub login configured</h1></body></html>")
+		// 使用管理员用户的 GitHub 登录配置
+		adminPref, err := getAdminPreference()
+		if err != nil || !adminPref.EnableGitHubLogin {
+			c.String(http.StatusInternalServerError, "<html><body><h1>GitHub login not enabled</h1></body></html>")
 			return
 		}
 
-		ak, sk, expiresIn := getGithubAccessToken(code, "", pref.GitHubClientID, pref.GitHubSecret)
+		ak, sk, expiresIn := getGithubAccessToken(code, "", adminPref.GitHubClientID, adminPref.GitHubSecret)
 		if ak == "" {
 			c.String(http.StatusInternalServerError, "<html><body><h1>Failed to login</h1></body></html>")
 			return
@@ -373,6 +371,7 @@ func ServerRouter() *gin.Engine {
 		c.HTML(http.StatusOK, "preference.html", gin.H{
 			"SiteURL":    SiteURL,
 			"Preference": pref,
+			"IsAdmin":    isAdminUser(email),
 		})
 	})
 
@@ -426,9 +425,15 @@ func ServerRouter() *gin.Engine {
 			pref.EnableAISummary = c.PostForm("enable_ai_summary") == "on"
 			pref.AISummaryTime = c.PostForm("ai_summary_time")
 			pref.AISummaryPrompt = c.PostForm("ai_summary_prompt")
-			pref.EnableGitHubLogin = c.PostForm("enable_github_login") == "on"
-			pref.GitHubClientID = c.PostForm("github_client_id")
-			pref.GitHubSecret = c.PostForm("github_secret")
+			
+			// Admin-only settings
+			if isAdminUser(email) {
+				pref.EnableGitHubLogin = c.PostForm("enable_github_login") == "on"
+				pref.GitHubClientID = c.PostForm("github_client_id")
+				pref.GitHubSecret = c.PostForm("github_secret")
+				pref.OpenAIAPIKey = c.PostForm("openai_api_key")
+				pref.OpenAIEndpoint = c.PostForm("openai_endpoint")
+			}
 
 			err = updateUserPreference(email, pref)
 			if err != nil {
@@ -443,6 +448,7 @@ func ServerRouter() *gin.Engine {
 			"SiteURL":    SiteURL,
 			"Preference": pref,
 			"Message":    message,
+			"IsAdmin":    isAdminUser(email),
 		})
 	})
 

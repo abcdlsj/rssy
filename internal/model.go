@@ -88,9 +88,12 @@ type UserPreference struct {
 	AISummaryPrompt    string `json:"ai_summary_prompt" gorm:"column:ai_summary_prompt;type:text"`
 	EnableAISummary    bool   `json:"enable_ai_summary" gorm:"column:enable_ai_summary;default:false"`
 	AISummaryTime      string `json:"ai_summary_time" gorm:"column:ai_summary_time;default:'22:00'"`
+	// Admin-only settings (only for default email user)
 	EnableGitHubLogin  bool   `json:"enable_github_login" gorm:"column:enable_github_login;default:false"`
 	GitHubClientID     string `json:"github_client_id" gorm:"column:github_client_id;type:text"`
 	GitHubSecret       string `json:"github_secret" gorm:"column:github_secret;type:text"`
+	OpenAIAPIKey       string `json:"openai_api_key" gorm:"column:openai_api_key;type:text"`
+	OpenAIEndpoint     string `json:"openai_endpoint" gorm:"column:openai_endpoint;type:text"`
 	CreateAt           int64  `json:"create_at" gorm:"column:create_at"`
 	UpdateAt           int64  `json:"update_at" gorm:"column:update_at"`
 }
@@ -308,6 +311,8 @@ func getUserPreference(email string) (*UserPreference, error) {
 				EnableGitHubLogin:  false,
 				GitHubClientID:     "",
 				GitHubSecret:       "",
+				OpenAIAPIKey:       "",
+				OpenAIEndpoint:     "",
 				CreateAt:           time.Now().Unix(),
 				UpdateAt:           time.Now().Unix(),
 			}
@@ -560,10 +565,20 @@ func getFeedMetaWithCache(feedID int64) FeedMetaCache {
 	return meta
 }
 
+func isAdminUser(email string) bool {
+	return email == DefaultEmail
+}
+
+func getAdminPreference() (*UserPreference, error) {
+	return getUserPreference(DefaultEmail)
+}
+
 func checkAnyUserHasGitHubLogin() bool {
-	var count int64
-	globalDB.Model(&UserPreference{}).Where("enable_github_login = ?", true).Count(&count)
-	return count > 0
+	adminPref, err := getAdminPreference()
+	if err != nil {
+		return false
+	}
+	return adminPref.EnableGitHubLogin
 }
 
 func getYesterdayHighlightedUnreadArticlesForUser(email string) ([]Article, error) {

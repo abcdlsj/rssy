@@ -3,7 +3,6 @@ package internal
 import (
 	"context"
 	"fmt"
-	"os"
 	"strings"
 	"time"
 
@@ -11,28 +10,27 @@ import (
 	"github.com/sashabaranov/go-openai"
 )
 
-var (
-	openaiClient *openai.Client
-
-	OPENAI_API_KEY  = os.Getenv("OPENAI_API_KEY")
-	OPENAI_ENDPOINT = os.Getenv("OPENAI_ENDPOINT")
-)
-
-func init() {
-	if OPENAI_API_KEY != "" {
-		cfg := openai.DefaultConfig(OPENAI_API_KEY)
-		if OPENAI_ENDPOINT != "" {
-			cfg.BaseURL = OPENAI_ENDPOINT
-		}
-		openaiClient = openai.NewClientWithConfig(cfg)
-		log.Infof("OpenAI client initialized with API key")
-	} else {
-		log.Infof("No OpenAI API key found, will use simple summary")
+func getOpenAIClient() *openai.Client {
+	adminPref, err := getAdminPreference()
+	if err != nil || adminPref.OpenAIAPIKey == "" {
+		return nil
 	}
+
+	cfg := openai.DefaultConfig(adminPref.OpenAIAPIKey)
+	if adminPref.OpenAIEndpoint != "" {
+		cfg.BaseURL = adminPref.OpenAIEndpoint
+	}
+	
+	return openai.NewClientWithConfig(cfg)
 }
 
 func aiCompletion(prompt, content string) (string, error) {
-	resp, err := openaiClient.CreateChatCompletion(
+	client := getOpenAIClient()
+	if client == nil {
+		return "", fmt.Errorf("OpenAI client not configured")
+	}
+
+	resp, err := client.CreateChatCompletion(
 		context.Background(),
 		openai.ChatCompletionRequest{
 			Model: openai.GPT4oMini,
@@ -77,7 +75,8 @@ func generateDailyAISummary(email string, date time.Time) error {
 	var categories string
 	var summaryType string
 	
-	if OPENAI_API_KEY == "" || openaiClient == nil {
+	client := getOpenAIClient()
+	if client == nil {
 		log.Infof("No OpenAI API key configured, using simple summary")
 		summary = generateSimpleSummary(articles)
 		categories = generateSimpleCategories(articles)
