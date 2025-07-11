@@ -18,25 +18,17 @@ func ServerRouter() *gin.Engine {
 	r.SetHTMLTemplate(tmpl)
 
 	checklogin := func(c *gin.Context) {
-		// 调试模式下直接使用默认邮箱
-		if DebugMode {
+		// 调试模式下直接使用默认邮箱 or 检查是否启用了 GitHub 登录
+		if DebugMode || !checkAnyUserHasGitHubLogin() {
 			c.Set("email", DefaultEmail)
 			c.Next()
 			return
 		}
 
-		// 检查是否有有效的 GitHub 会话
+		// 启用了 GitHub 登录，检查是否有有效的 GitHub 会话
 		session, err := checkRefreshGHStatus(c.Request)
 		if err != nil {
-			// 检查是否有用户启用了 GitHub 登录
-			hasGitHubLogin := checkAnyUserHasGitHubLogin()
-			if !hasGitHubLogin {
-				// 没有用户启用 GitHub 登录，使用默认邮箱
-				c.Set("email", DefaultEmail)
-				c.Next()
-				return
-			}
-			// 有用户启用了 GitHub 登录，重定向到登录页面
+			// 没有有效会话，重定向到登录页面
 			c.Redirect(http.StatusSeeOther, "/login")
 			return
 		}
@@ -425,7 +417,7 @@ func ServerRouter() *gin.Engine {
 			pref.EnableAISummary = c.PostForm("enable_ai_summary") == "on"
 			pref.AISummaryTime = c.PostForm("ai_summary_time")
 			pref.AISummaryPrompt = c.PostForm("ai_summary_prompt")
-			
+
 			// Admin-only settings
 			if isAdminUser(email) {
 				pref.EnableGitHubLogin = c.PostForm("enable_github_login") == "on"
