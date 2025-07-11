@@ -15,22 +15,14 @@
     </div>
     
     <div class="summary-content">
-      {{range $line := splitLines .Summary}}
-        {{if ne $line ""}}
-          <p>{{$line}}</p>
-        {{end}}
-      {{end}}
+      {{.Summary | markdownToHTML}}
     </div>
     
     {{if .Categories}}
     <div class="summary-categories">
       <h4>Categories:</h4>
       <div class="categories-content">
-        {{range $line := splitLines .Categories}}
-          {{if ne $line ""}}
-            <p>{{$line}}</p>
-          {{end}}
-        {{end}}
+        {{.Categories | markdownToHTML}}
       </div>
     </div>
     {{end}}
@@ -90,6 +82,98 @@
     margin-bottom: 15px;
   }
   
+  .summary-content h1, .summary-content h2, .summary-content h3, .summary-content h4, .summary-content h5, .summary-content h6 {
+    margin-top: 20px;
+    margin-bottom: 10px;
+    color: #333;
+  }
+  
+  .summary-content h1 {
+    font-size: 1.5em;
+    border-bottom: 2px solid #ddd;
+    padding-bottom: 5px;
+  }
+  
+  .summary-content h2 {
+    font-size: 1.3em;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 3px;
+  }
+  
+  .summary-content h3 {
+    font-size: 1.1em;
+    color: #555;
+  }
+  
+  .summary-content ul, .summary-content ol {
+    padding-left: 20px;
+    margin-bottom: 15px;
+  }
+  
+  .summary-content li {
+    margin-bottom: 5px;
+  }
+  
+  .summary-content p {
+    margin-bottom: 12px;
+    line-height: 1.7;
+  }
+  
+  .summary-content blockquote {
+    border-left: 4px solid #ddd;
+    margin: 15px 0;
+    padding: 10px 20px;
+    background-color: #f9f9f9;
+    font-style: italic;
+  }
+  
+  .summary-content code {
+    background-color: #f4f4f4;
+    padding: 2px 4px;
+    border-radius: 3px;
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 0.9em;
+  }
+  
+  .summary-content pre {
+    background-color: #f4f4f4;
+    padding: 15px;
+    border-radius: 5px;
+    overflow-x: auto;
+    margin-bottom: 15px;
+  }
+  
+  .summary-content pre code {
+    background: none;
+    padding: 0;
+  }
+  
+  .summary-content table {
+    border-collapse: collapse;
+    width: 100%;
+    margin-bottom: 15px;
+  }
+  
+  .summary-content th, .summary-content td {
+    border: 1px solid #ddd;
+    padding: 8px 12px;
+    text-align: left;
+  }
+  
+  .summary-content th {
+    background-color: #f9f9f9;
+    font-weight: bold;
+  }
+  
+  .summary-content a {
+    color: #007bff;
+    text-decoration: none;
+  }
+  
+  .summary-content a:hover {
+    text-decoration: underline;
+  }
+
   .summary-content p {
     margin-bottom: 10px;
   }
@@ -109,8 +193,24 @@
     color: #666;
   }
   
+  .categories-content ul, .categories-content ol {
+    padding-left: 20px;
+    margin-bottom: 10px;
+  }
+  
+  .categories-content li {
+    margin-bottom: 3px;
+  }
+  
   .categories-content p {
     margin-bottom: 5px;
+  }
+  
+  .categories-content h1, .categories-content h2, .categories-content h3, .categories-content h4, .categories-content h5, .categories-content h6 {
+    margin-top: 10px;
+    margin-bottom: 5px;
+    color: #555;
+    font-size: 1em;
   }
   
   .no-summaries {
@@ -172,6 +272,52 @@
     
     .summary-content {
       color: #e2e8f0;
+    }
+    
+    .summary-content h1, .summary-content h2, .summary-content h3, .summary-content h4, .summary-content h5, .summary-content h6 {
+      color: #e2e8f0;
+    }
+    
+    .summary-content h1 {
+      border-bottom-color: #4a5568;
+    }
+    
+    .summary-content h2 {
+      border-bottom-color: #4a5568;
+    }
+    
+    .summary-content blockquote {
+      background-color: #2d3748;
+      border-left-color: #4a5568;
+      color: #cbd5e0;
+    }
+    
+    .summary-content code {
+      background-color: #4a5568;
+      color: #e2e8f0;
+    }
+    
+    .summary-content pre {
+      background-color: #2d3748;
+      border: 1px solid #4a5568;
+    }
+    
+    .summary-content th {
+      background-color: #4a5568;
+      color: #e2e8f0;
+    }
+    
+    .summary-content th, .summary-content td {
+      border-color: #4a5568;
+      color: #e2e8f0;
+    }
+    
+    .summary-content a {
+      color: #63b3ed;
+    }
+    
+    .categories-content h1, .categories-content h2, .categories-content h3, .categories-content h4, .categories-content h5, .categories-content h6 {
+      color: #cbd5e0;
     }
     
     .no-summaries {

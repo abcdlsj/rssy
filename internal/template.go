@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/dustin/go-humanize"
+	"github.com/russross/blackfriday/v2"
 )
 
 var (
@@ -35,6 +36,18 @@ var (
 
 		"safeHTML": func(content string) template.HTML {
 			return template.HTML(content)
+		},
+
+		"markdownToHTML": func(content string) template.HTML {
+			// Configure blackfriday to render nice HTML
+			renderer := blackfriday.NewHTMLRenderer(blackfriday.HTMLRendererParameters{
+				Flags: blackfriday.CommonHTMLFlags | blackfriday.HrefTargetBlank,
+			})
+			
+			extensions := blackfriday.CommonExtensions | blackfriday.AutoHeadingIDs
+			
+			html := blackfriday.Run([]byte(content), blackfriday.WithRenderer(renderer), blackfriday.WithExtensions(extensions))
+			return template.HTML(html)
 		},
 
 		"displayContentRead": func(content string) bool {
