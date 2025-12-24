@@ -49,6 +49,22 @@ AUTH_GITHUB_SECRET=your-github-client-secret
 DEV_MODE=true
 ```
 
+## GitHub OAuth 配置
+
+NextAuth.js 使用 `/api/auth/[...nextauth]` 动态路由自动处理所有认证相关请求，包括 OAuth callback。
+
+**Callback URL 格式**：`/api/auth/callback/{provider}`，其中 `{provider}` 是 provider 的 id（GitHub provider 的 id 是 `github`）。
+
+1. 访问 [GitHub Developer Settings](https://github.com/settings/developers)
+2. 点击 "New OAuth App" 创建新应用
+3. 填写应用信息：
+   - **Application name**: RSSy（或自定义名称）
+   - **Homepage URL**: `https://yourdomain.com`（生产环境）或 `http://localhost:3000`（开发环境）
+   - **Authorization callback URL**: 
+     - 生产环境：`https://yourdomain.com/api/auth/callback/github`
+     - 开发环境：`http://localhost:3000/api/auth/callback/github`
+4. 创建后，复制 **Client ID** 和 **Client Secret** 到环境变量中
+
 ## 部署
 
 支持 Vercel 部署，已配置 Cron 任务自动刷新 RSS 和生成 AI 总结。
