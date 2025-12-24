@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { parseFeed, filterRecentItems } from "@/lib/rss"
+import { extractArticle } from "@/lib/extractor"
 
 export async function GET(request: NextRequest) {
   const authHeader = request.headers.get("authorization")
@@ -31,20 +32,31 @@ export async function GET(request: NextRequest) {
         })
         const titleSet = new Set(existingTitles.map((a) => a.title))
 
-        const newArticles = recentItems
-          .filter((item) => !titleSet.has(item.title))
-          .map((item) => ({
-            feedId: feed.id,
-            userId: feed.userId,
-            title: item.title,
-            link: item.link,
-            content: item.content || null,
-            publishAt: item.pubDate ? new Date(item.pubDate) : new Date(),
-          }))
+        const newItems = recentItems.filter((item) => !titleSet.has(item.title))
 
-        if (newArticles.length > 0) {
-          await prisma.article.createMany({ data: newArticles })
-          totalArticlesAdded += newArticles.length
+        for (const item of newItems) {
+          let fullContent: string | null = null
+          try {
+            const extracted = await extractArticle(item.link)
+            if (extracted?.content) {
+              fullContent = extracted.content
+            }
+          } catch {
+            // ignore extraction errors
+          }
+
+          await prisma.article.create({
+            data: {
+              feedId: feed.id,
+              userId: feed.userId,
+              title: item.title,
+              link: item.link,
+              content: item.content || null,
+              fullContent,
+              publishAt: item.pubDate ? new Date(item.pubDate) : new Date(),
+            },
+          })
+          totalArticlesAdded++
         }
 
         await prisma.feed.update({

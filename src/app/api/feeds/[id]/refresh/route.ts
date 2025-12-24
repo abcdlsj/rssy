@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { parseFeed, filterRecentItems } from "@/lib/rss"
+import { extractArticle } from "@/lib/extractor"
 
 export async function POST(
   _request: NextRequest,
@@ -33,19 +34,33 @@ export async function POST(
     })
     const titleSet = new Set(existingTitles.map((a) => a.title))
 
-    const newArticles = recentItems
-      .filter((item) => !titleSet.has(item.title))
-      .map((item) => ({
-        feedId: feed.id,
-        userId: session.user.id,
-        title: item.title,
-        link: item.link,
-        content: item.content || null,
-        publishAt: item.pubDate ? new Date(item.pubDate) : new Date(),
-      }))
+    const newItems = recentItems.filter((item) => !titleSet.has(item.title))
 
-    if (newArticles.length > 0) {
-      await prisma.article.createMany({ data: newArticles })
+    const createdArticles: string[] = []
+
+    for (const item of newItems) {
+      let fullContent: string | null = null
+      try {
+        const extracted = await extractArticle(item.link)
+        if (extracted?.content) {
+          fullContent = extracted.content
+        }
+      } catch {
+        // ignore extraction errors
+      }
+
+      const article = await prisma.article.create({
+        data: {
+          feedId: feed.id,
+          userId: session.user.id,
+          title: item.title,
+          link: item.link,
+          content: item.content || null,
+          fullContent,
+          publishAt: item.pubDate ? new Date(item.pubDate) : new Date(),
+        },
+      })
+      createdArticles.push(article.id)
     }
 
     await prisma.feed.update({
@@ -53,7 +68,7 @@ export async function POST(
       data: { lastFetchedAt: new Date() },
     })
 
-    return NextResponse.json({ articlesAdded: newArticles.length })
+    return NextResponse.json({ articlesAdded: createdArticles.length })
   } catch (error) {
     console.error("Error refreshing feed:", error)
     return NextResponse.json({ error: "Failed to refresh feed" }, { status: 500 })

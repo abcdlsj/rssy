@@ -2,6 +2,8 @@ import { auth } from "@/lib/auth"
 import { redirect } from "next/navigation"
 import { Nav } from "@/components/nav"
 import { SessionProvider } from "next-auth/react"
+import { ArticleReaderProvider } from "@/contexts/article-reader-context"
+import { ArticleSidebar } from "@/components/article-sidebar"
 
 export default async function AppLayout({
   children,
@@ -16,12 +18,15 @@ export default async function AppLayout({
 
   return (
     <SessionProvider session={session}>
-      <div className="min-h-screen bg-background">
-        <Nav />
-        <main className="mx-auto max-w-5xl px-4 py-8 sm:px-6 sm:py-10">
-          {children}
-        </main>
-      </div>
+      <ArticleReaderProvider>
+        <div className="min-h-screen bg-background">
+          <Nav />
+          <main className="mx-auto max-w-5xl px-4 py-8 sm:px-6 sm:py-10">
+            {children}
+          </main>
+          <ArticleSidebar />
+        </div>
+      </ArticleReaderProvider>
     </SessionProvider>
   )
 }

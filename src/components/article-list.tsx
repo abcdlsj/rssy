@@ -2,9 +2,10 @@
 
 import { useState } from "react"
 import { timeAgo, cn } from "@/lib/utils"
-import { Check, Trash2, ExternalLink, Star, Inbox } from "lucide-react"
+import { Check, Trash2, ExternalLink, Star, Inbox, BookOpen, RotateCcw } from "lucide-react"
 import { format, isToday, isYesterday, parseISO } from "date-fns"
 import { zhCN } from "date-fns/locale"
+import { useArticleReader } from "@/contexts/article-reader-context"
 
 interface Article {
   id: string
@@ -41,14 +42,26 @@ function formatDateLabel(dateStr: string) {
   return format(date, "M月d日 EEEE", { locale: zhCN })
 }
 
-export function ArticleList({ articles: initialArticles }: { articles: Article[] }) {
+type View = "unread" | "starred" | "archive"
+
+export function ArticleList({ articles: initialArticles, view }: { articles: Article[]; view: View }) {
   const [articles, setArticles] = useState(initialArticles)
+  const { openArticle, selectedArticle } = useArticleReader()
 
   const markAsRead = async (id: string) => {
     await fetch(`/api/articles/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ read: true }),
+    })
+    setArticles((prev) => prev.filter((a) => a.id !== id))
+  }
+
+  const markAsUnread = async (id: string) => {
+    await fetch(`/api/articles/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ read: false }),
     })
     setArticles((prev) => prev.filter((a) => a.id !== id))
   }
@@ -90,71 +103,110 @@ export function ArticleList({ articles: initialArticles }: { articles: Article[]
             {formatDateLabel(dateStr)}
           </h2>
           <div className="space-y-px">
-            {items.map((article) => (
-              <article
-                key={article.id}
-                className="group -mx-3 flex items-start gap-3 rounded-lg px-3 py-2.5 transition-colors hover:bg-muted/50"
-              >
-                <div className="min-w-0 flex-1">
-                  <div className="mb-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
-                    <span>{article.feed.title}</span>
-                    <span className="opacity-50">·</span>
-                    <time>{timeAgo(article.publishAt)}</time>
+            {items.map((article) => {
+              const isSelected = selectedArticle?.id === article.id
+              return (
+                <article
+                  key={article.id}
+                  className={cn(
+                    "group -mx-3 flex cursor-pointer items-start gap-3 rounded-lg px-3 py-2.5 transition-colors",
+                    isSelected ? "bg-muted" : "hover:bg-muted/50"
+                  )}
+                  onClick={() =>
+                    openArticle({
+                      id: article.id,
+                      title: article.title,
+                      link: article.link,
+                      content: article.content,
+                      feedTitle: article.feed.title,
+                      publishAt: article.publishAt,
+                      starred: article.starred,
+                    })
+                  }
+                >
+                  <div className="min-w-0 flex-1">
+                    <div className="mb-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
+                      <span>{article.feed.title}</span>
+                      <span className="opacity-50">·</span>
+                      <time>{timeAgo(article.publishAt)}</time>
+                    </div>
+
+                    <h3 className="text-[15px] leading-snug text-foreground">
+                      {article.title}
+                    </h3>
                   </div>
 
-                  <h3 className="text-[15px] leading-snug text-foreground">
+                  <div
+                    className="flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <button
+                      onClick={() => toggleStar(article.id, article.starred)}
+                      className={cn(
+                        "rounded p-1.5 transition-colors",
+                        article.starred
+                          ? "text-amber-500"
+                          : "text-muted-foreground hover:text-amber-500"
+                      )}
+                      title={article.starred ? "取消收藏" : "收藏"}
+                    >
+                      <Star className={cn("h-4 w-4", article.starred && "fill-current")} />
+                    </button>
+                    {view === "archive" ? (
+                      <button
+                        onClick={() => markAsUnread(article.id)}
+                        className="rounded p-1.5 text-muted-foreground transition-colors hover:text-foreground"
+                        title="标为未读"
+                      >
+                        <RotateCcw className="h-4 w-4" />
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => markAsRead(article.id)}
+                        className="rounded p-1.5 text-muted-foreground transition-colors hover:text-foreground"
+                        title="标为已读"
+                      >
+                        <Check className="h-4 w-4" />
+                      </button>
+                    )}
+                    <button
+                      onClick={() => deleteArticle(article.id)}
+                      className="rounded p-1.5 text-muted-foreground transition-colors hover:text-destructive"
+                      title="删除"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                    <button
+                      onClick={() =>
+                        openArticle({
+                          id: article.id,
+                          title: article.title,
+                          link: article.link,
+                          content: article.content,
+                          feedTitle: article.feed.title,
+                          publishAt: article.publishAt,
+                          starred: article.starred,
+                        })
+                      }
+                      className="rounded p-1.5 text-muted-foreground transition-colors hover:text-foreground"
+                      title="阅读"
+                    >
+                      <BookOpen className="h-4 w-4" />
+                    </button>
                     <a
                       href={article.link}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="hover:underline hover:underline-offset-2"
                       onClick={() => markAsRead(article.id)}
+                      className="rounded p-1.5 text-muted-foreground transition-colors hover:text-foreground"
+                      title="原文"
                     >
-                      {article.title}
+                      <ExternalLink className="h-4 w-4" />
                     </a>
-                  </h3>
-                </div>
-
-                <div className="flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
-                  <button
-                    onClick={() => toggleStar(article.id, article.starred)}
-                    className={cn(
-                      "rounded p-1.5 transition-colors",
-                      article.starred
-                        ? "text-amber-500"
-                        : "text-muted-foreground hover:text-amber-500"
-                    )}
-                    title="收藏"
-                  >
-                    <Star className={cn("h-4 w-4", article.starred && "fill-current")} />
-                  </button>
-                  <button
-                    onClick={() => markAsRead(article.id)}
-                    className="rounded p-1.5 text-muted-foreground transition-colors hover:text-foreground"
-                    title="已读"
-                  >
-                    <Check className="h-4 w-4" />
-                  </button>
-                  <button
-                    onClick={() => deleteArticle(article.id)}
-                    className="rounded p-1.5 text-muted-foreground transition-colors hover:text-destructive"
-                    title="删除"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
-                  <a
-                    href={article.link}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    onClick={() => markAsRead(article.id)}
-                    className="rounded p-1.5 text-muted-foreground transition-colors hover:text-foreground"
-                    title="打开"
-                  >
-                    <ExternalLink className="h-4 w-4" />
-                  </a>
-                </div>
-              </article>
-            ))}
+                  </div>
+                </article>
+              )
+            })}
           </div>
         </section>
       ))}
