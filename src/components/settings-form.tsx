@@ -3,7 +3,7 @@
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Switch } from "@/components/ui/switch"
+import { Checkbox } from "@/components/ui/checkbox"
 import { Textarea } from "@/components/ui/textarea"
 import { Loader2, Check } from "lucide-react"
 
@@ -97,7 +97,7 @@ export function SettingsForm({ preference }: { preference: Preference }) {
     <div className="max-w-md divide-y divide-border">
       <Section title="清理">
         <Row label="自动清理已读文章">
-          <Switch
+          <Checkbox
             checked={form.enableAutoCleanup}
             onCheckedChange={(checked) => setForm({ ...form, enableAutoCleanup: checked })}
           />
@@ -120,7 +120,7 @@ export function SettingsForm({ preference }: { preference: Preference }) {
 
       <Section title="AI 总结">
         <Row label="每日生成">
-          <Switch
+          <Checkbox
             checked={form.enableAISummary}
             onCheckedChange={(checked) => setForm({ ...form, enableAISummary: checked })}
           />
