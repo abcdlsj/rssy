@@ -1,0 +1,16 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/refresh-feeds",
+      "schedule": "*/30 * * * *"
+    },
+    {
+      "path": "/api/cron/ai-summary",
+      "schedule": "* * * * *"
+    },
+    {
+      "path": "/api/cron/cleanup",
+      "schedule": "0 4 * * *"
+    }
+  ]
+}
