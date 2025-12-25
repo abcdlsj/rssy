@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "DB=sqlite pnpm db:generate && next dev",
     "dev:pg": "pnpm db:generate && next dev",
-    "build": "DB=sqlite pnpm db:generate && next build",
+    "build": "pnpm db:generate && next build",
     "build:pg": "pnpm db:generate && next build",
     "start": "next start",
     "lint": "eslint",
