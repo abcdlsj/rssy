@@ -1,0 +1,73 @@
+version: '3.8'
+
+services:
+  # PostgreSQL 数据库
+  postgres:
+    image: postgres:16-alpine
+    container_name: rssy-postgres
+    environment:
+      POSTGRES_USER: rssy
+      POSTGRES_PASSWORD: rssy_password
+      POSTGRES_DB: rssy
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U rssy"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - rssy-network
+
+  # RSSy 应用
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: rssy-app
+    environment:
+      DATABASE_URL: postgresql://rssy:rssy_password@postgres:5432/rssy
+      AUTH_SECRET: ${AUTH_SECRET:-change-me-in-production}
+      CRON_SECRET: ${CRON_SECRET:-change-me-in-production}
+      AUTH_GITHUB_ID: ${AUTH_GITHUB_ID:-}
+      AUTH_GITHUB_SECRET: ${AUTH_GITHUB_SECRET:-}
+      NODE_ENV: production
+    ports:
+      - "3000:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - rssy-network
+    restart: unless-stopped
+    command: sh -c "pnpm db:push || true && node server.js"
+
+  # Cron 任务容器
+  cron:
+    image: alpine:latest
+    container_name: rssy-cron
+    environment:
+      CRON_SECRET: ${CRON_SECRET:-change-me-in-production}
+      APP_URL: http://app:3000
+    networks:
+      - rssy-network
+    restart: unless-stopped
+    command: >
+      sh -c "
+      apk add --no-cache dcron curl &&
+      echo '*/30 * * * * curl -H \"Authorization: Bearer $${CRON_SECRET}\" $${APP_URL}/api/cron/refresh-feeds' > /etc/crontabs/root &&
+      echo '0 * * * * curl -H \"Authorization: Bearer $${CRON_SECRET}\" $${APP_URL}/api/cron/ai-summary' >> /etc/crontabs/root &&
+      echo '0 4 * * * curl -H \"Authorization: Bearer $${CRON_SECRET}\" $${APP_URL}/api/cron/cleanup' >> /etc/crontabs/root &&
+      chmod 0644 /etc/crontabs/root &&
+      crond -f -l 2
+      "
+
+volumes:
+  postgres_data:
+
+networks:
+  rssy-network:
+    driver: bridge
+

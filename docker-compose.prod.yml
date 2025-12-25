@@ -1,0 +1,39 @@
+version: '3.8'
+
+services:
+  # RSSy 应用（生产环境）
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: rssy-app
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      AUTH_SECRET: ${AUTH_SECRET}
+      CRON_SECRET: ${CRON_SECRET}
+      AUTH_GITHUB_ID: ${AUTH_GITHUB_ID}
+      AUTH_GITHUB_SECRET: ${AUTH_GITHUB_SECRET}
+      NODE_ENV: production
+    ports:
+      - "${PORT:-3000}:3000"
+    restart: unless-stopped
+    command: sh -c "pnpm db:push || true && node server.js"
+
+  # Cron 任务容器（生产环境）
+  cron:
+    image: alpine:latest
+    container_name: rssy-cron
+    environment:
+      CRON_SECRET: ${CRON_SECRET}
+      APP_URL: ${APP_URL:-http://app:3000}
+    restart: unless-stopped
+    command: >
+      sh -c "
+      apk add --no-cache dcron curl &&
+      echo '*/30 * * * * curl -H \"Authorization: Bearer $${CRON_SECRET}\" $${APP_URL}/api/cron/refresh-feeds' > /etc/crontabs/root &&
+      echo '0 * * * * curl -H \"Authorization: Bearer $${CRON_SECRET}\" $${APP_URL}/api/cron/ai-summary' >> /etc/crontabs/root &&
+      echo '0 4 * * * curl -H \"Authorization: Bearer $${CRON_SECRET}\" $${APP_URL}/api/cron/cleanup' >> /etc/crontabs/root &&
+      chmod 0644 /etc/crontabs/root &&
+      crond -f -l 2
+      "
+
