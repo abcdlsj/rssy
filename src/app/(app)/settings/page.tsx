@@ -6,6 +6,17 @@ export default async function SettingsPage() {
   const session = await auth()
   if (!session?.user?.id) return null
 
+  // 确保 User 存在（使用 upsert 避免重复创建）
+  await prisma.user.upsert({
+    where: { id: session.user.id },
+    update: {},
+    create: {
+      id: session.user.id,
+      email: session.user.email || `${session.user.id}@unknown`,
+      name: session.user.name,
+    },
+  })
+
   let preference = await prisma.userPreference.findUnique({
     where: { userId: session.user.id },
   })

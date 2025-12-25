@@ -41,6 +41,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         ]),
   ],
   callbacks: {
+    jwt: async ({ token, user }) => {
+      if (user) {
+        token.sub = user.id
+      }
+      return token
+    },
     session: async ({ session, user, token }) => {
       if (session.user) {
         session.user.id = isDevMode ? (token?.sub as string) : user.id

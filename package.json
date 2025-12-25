@@ -3,15 +3,14 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "pnpm db:generate && next dev",
-    "dev:pg": "DB=pg pnpm db:generate && next dev",
-    "build": "pnpm db:generate && next build",
-    "build:pg": "DB=pg pnpm db:generate && next build",
-    "postinstall": "prisma generate --schema=prisma/schema.prisma",
+    "dev": "DB=sqlite pnpm db:generate && next dev",
+    "dev:pg": "pnpm db:generate && next dev",
+    "build": "DB=sqlite pnpm db:generate && next build",
+    "build:pg": "pnpm db:generate && next build",
     "start": "next start",
     "lint": "eslint",
-    "db:generate": "prisma generate --schema=prisma/schema.${DB:-sqlite}.prisma",
-    "db:push": "prisma db push --schema=prisma/schema.${DB:-sqlite}.prisma"
+    "db:generate": "prisma generate --schema=prisma/schema${DB:+.$DB}.prisma",
+    "db:push": "prisma db push --schema=prisma/schema${DB:+.$DB}.prisma"
   },
   "dependencies": {
     "@ai-sdk/openai": "^3.0.1",
