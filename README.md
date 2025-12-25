@@ -127,14 +127,38 @@ Vercel 上需要使用 PostgreSQL 数据库。推荐使用：
      pnpm db:push
      ```
 
-6. **配置 Cron 任务**
+6. **Cron 任务配置**
    
-   项目已通过 `vercel.json` 配置了以下 Cron 任务：
-   - **刷新 RSS**：每 30 分钟执行一次
-   - **AI 总结**：每小时执行一次（根据用户设置的时间）
-   - **清理过期文章**：每天凌晨 4 点执行
+   **注意**：Vercel 免费套餐不支持 Cron 任务。默认配置中 `vercel.json` 的 `crons` 数组为空，需要手动触发。
    
-   Vercel 会自动识别 `vercel.json` 中的 cron 配置。
+   如果需要启用自动 Cron（需要 Vercel Pro 套餐），可以：
+   - 复制 `vercel.json.example` 的内容到 `vercel.json`
+   - 或者手动添加 cron 配置
+   
+   **手动触发 Cron 任务**：
+   
+   由于 Vercel 免费套餐不支持 Cron，你可以通过以下方式手动触发：
+   
+   ```bash
+   # 刷新 RSS 订阅
+   curl -H "Authorization: Bearer $CRON_SECRET" https://your-project.vercel.app/api/cron/refresh-feeds
+   
+   # 生成 AI 总结
+   curl -H "Authorization: Bearer $CRON_SECRET" https://your-project.vercel.app/api/cron/ai-summary
+   
+   # 清理过期文章
+   curl -H "Authorization: Bearer $CRON_SECRET" https://your-project.vercel.app/api/cron/cleanup
+   ```
+   
+   **使用 GitHub Actions 作为外部 Cron**：
+   
+   1. 复制 `.github/workflows/cron.yml.example` 到 `.github/workflows/cron.yml`
+   2. 在 GitHub 仓库设置中添加 Secrets：
+      - `CRON_SECRET`: 你的 Cron 密钥（与 Vercel 环境变量中的 `CRON_SECRET` 相同）
+      - `APP_URL`: 你的 Vercel 应用 URL（如 `https://your-project.vercel.app`）
+   3. GitHub Actions 会自动按计划执行 Cron 任务
+   
+   或者使用其他外部 Cron 服务（如 cron-job.org、EasyCron 等）定期调用这些 API。
 
 #### 3. 构建配置
 
@@ -149,7 +173,9 @@ Vercel 上需要使用 PostgreSQL 数据库。推荐使用：
 - ✅ 生产环境不要设置 `DEV_MODE=true`
 - ✅ 确保 `AUTH_SECRET` 是随机生成的强密钥
 - ⚠️ 首次部署后需要等待数据库表创建完成
-- ⚠️ **注意**：Vercel 免费套餐不支持 Cron 任务，如需使用 Cron 功能，请使用 Docker 部署
+- ⚠️ **注意**：Vercel 免费套餐不支持 Cron 任务，默认配置已禁用自动 Cron
+- 💡 **手动触发**：可以通过 curl 或外部 Cron 服务手动触发 Cron 任务（见上方说明）
+- 💡 **启用自动 Cron**：如需启用自动 Cron，需要 Vercel Pro 套餐，并参考 `vercel.json.example` 配置
 
 ### Docker 部署
 

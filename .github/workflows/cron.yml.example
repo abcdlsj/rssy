@@ -1,0 +1,40 @@
+name: Cron Jobs
+
+on:
+  schedule:
+    # 每 30 分钟刷新 RSS
+    - cron: '*/30 * * * *'
+    # 每小时生成 AI 总结
+    - cron: '0 * * * *'
+    # 每天凌晨 4 点清理过期文章
+    - cron: '0 4 * * *'
+  workflow_dispatch: # 允许手动触发
+
+jobs:
+  refresh-feeds:
+    if: github.event.schedule == '*/30 * * * *' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Refresh Feeds
+        run: |
+          curl -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            ${{ secrets.APP_URL }}/api/cron/refresh-feeds
+
+  ai-summary:
+    if: github.event.schedule == '0 * * * *' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Generate AI Summary
+        run: |
+          curl -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            ${{ secrets.APP_URL }}/api/cron/ai-summary
+
+  cleanup:
+    if: github.event.schedule == '0 4 * * *' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Cleanup Expired Articles
+        run: |
+          curl -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            ${{ secrets.APP_URL }}/api/cron/cleanup
+
