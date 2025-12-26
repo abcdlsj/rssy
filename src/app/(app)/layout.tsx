@@ -21,7 +21,7 @@ export default async function AppLayout({
       <ArticleReaderProvider>
         <div className="min-h-screen bg-background">
           <Nav />
-          <main className="mx-auto max-w-5xl px-4 py-8 sm:px-6 sm:py-10">
+          <main className="mx-auto max-w-2xl px-4 py-8 sm:px-6 sm:py-10">
             {children}
           </main>
           <ArticleSidebar />

@@ -46,7 +46,21 @@ type View = "unread" | "starred" | "archive"
 
 export function ArticleList({ articles: initialArticles, view }: { articles: Article[]; view: View }) {
   const [articles, setArticles] = useState(initialArticles)
+  const [readIds, setReadIds] = useState<Set<string>>(new Set())
   const { openArticle, selectedArticle } = useArticleReader()
+
+  const handleOpenArticle = (article: Article) => {
+    setReadIds((prev) => new Set(prev).add(article.id))
+    openArticle({
+      id: article.id,
+      title: article.title,
+      link: article.link,
+      content: article.content,
+      feedTitle: article.feed.title,
+      publishAt: article.publishAt,
+      starred: article.starred,
+    })
+  }
 
   const markAsRead = async (id: string) => {
     await fetch(`/api/articles/${id}`, {
@@ -105,24 +119,16 @@ export function ArticleList({ articles: initialArticles, view }: { articles: Art
           <div className="space-y-px">
             {items.map((article) => {
               const isSelected = selectedArticle?.id === article.id
+              const isRead = view === "unread" && readIds.has(article.id)
               return (
                 <article
                   key={article.id}
                   className={cn(
                     "group -mx-3 flex cursor-pointer items-start gap-3 rounded-lg px-3 py-2.5 transition-colors",
-                    isSelected ? "bg-muted" : "hover:bg-muted/50"
+                    isSelected ? "bg-muted" : "hover:bg-muted/50",
+                    isRead && "opacity-50"
                   )}
-                  onClick={() =>
-                    openArticle({
-                      id: article.id,
-                      title: article.title,
-                      link: article.link,
-                      content: article.content,
-                      feedTitle: article.feed.title,
-                      publishAt: article.publishAt,
-                      starred: article.starred,
-                    })
-                  }
+                  onClick={() => handleOpenArticle(article)}
                 >
                   <div className="min-w-0 flex-1">
                     <div className="mb-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
@@ -131,7 +137,10 @@ export function ArticleList({ articles: initialArticles, view }: { articles: Art
                       <time>{timeAgo(article.publishAt)}</time>
                     </div>
 
-                    <h3 className="text-[15px] leading-snug text-foreground">
+                    <h3 className={cn(
+                      "text-[15px] leading-snug",
+                      isRead ? "text-muted-foreground" : "text-foreground"
+                    )}>
                       {article.title}
                     </h3>
                   </div>
@@ -177,17 +186,7 @@ export function ArticleList({ articles: initialArticles, view }: { articles: Art
                       <Trash2 className="h-4 w-4" />
                     </button>
                     <button
-                      onClick={() =>
-                        openArticle({
-                          id: article.id,
-                          title: article.title,
-                          link: article.link,
-                          content: article.content,
-                          feedTitle: article.feed.title,
-                          publishAt: article.publishAt,
-                          starred: article.starred,
-                        })
-                      }
+                      onClick={() => handleOpenArticle(article)}
                       className="rounded p-1.5 text-muted-foreground transition-colors hover:text-foreground"
                       title="阅读"
                     >
