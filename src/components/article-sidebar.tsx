@@ -28,14 +28,16 @@ export function ArticleSidebar() {
 
   useEffect(() => {
     if (isOpen) {
-      setIsVisible(true)
       document.body.style.overflow = "hidden"
       requestAnimationFrame(() => {
+        setIsVisible(true)
         requestAnimationFrame(() => setIsAnimating(true))
       })
     } else {
-      setIsAnimating(false)
       document.body.style.overflow = ""
+      requestAnimationFrame(() => {
+        setIsAnimating(false)
+      })
       const timer = setTimeout(() => setIsVisible(false), 300)
       return () => clearTimeout(timer)
     }
@@ -43,9 +45,11 @@ export function ArticleSidebar() {
 
   useEffect(() => {
     if (selectedArticle) {
-      setStarred(selectedArticle.starred)
-      setFullArticle(null)
-      setLoading(true)
+      requestAnimationFrame(() => {
+        setStarred(selectedArticle.starred)
+        setFullArticle(null)
+        setLoading(true)
+      })
 
       fetch(`/api/articles/${selectedArticle.id}`)
         .then((res) => res.json())
@@ -96,7 +100,7 @@ export function ArticleSidebar() {
       {/* 桌面端：居中浮窗全覆盖；移动端：底部滑入全屏 */}
       <div
         className={cn(
-          "fixed inset-0 z-50 bg-background transition-opacity duration-300",
+          "fixed inset-0 z-50 bg-background backdrop-blur-2xl transition-opacity duration-300",
           "sm:flex sm:items-center sm:justify-center",
           isAnimating ? "opacity-100" : "opacity-0"
         )}
@@ -189,7 +193,7 @@ export function ArticleSidebar() {
                     </div>
                   ) : (fullArticle?.fullContent || fullArticle?.content || selectedArticle.content) ? (
                     <div
-                      className="prose prose-neutral dark:prose-invert max-w-none prose-headings:font-semibold prose-headings:tracking-tight prose-p:leading-relaxed prose-a:text-primary prose-a:no-underline hover:prose-a:underline prose-img:rounded-lg prose-img:shadow-md"
+                      className="prose prose-neutral dark:prose-invert max-w-none prose-p:leading-[1.85] prose-p:text-[1.05rem] prose-p:text-base prose-p:tracking-wide prose-h1:mb-6 prose-h2:mb-5 prose-h3:mb-4 prose-h4:mb-3 prose-headings:font-semibold prose-headings:tracking-tight prose-a:text-primary prose-a:no-underline hover:prose-a:underline prose-img:rounded-lg prose-img:shadow-md prose-p:first-letter:text-lg"
                       dangerouslySetInnerHTML={{
                         __html: fullArticle?.fullContent || fullArticle?.content || selectedArticle.content || "",
                       }}
