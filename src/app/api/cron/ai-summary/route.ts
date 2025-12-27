@@ -17,14 +17,23 @@ export async function GET(request: NextRequest) {
       },
     })
 
-    const currentTime = format(new Date(), "HH:mm")
-    const yesterday = subDays(new Date(), 1)
+    const now = new Date()
+    const yesterday = subDays(now, 1)
     const dateStr = format(yesterday, "yyyy-MM-dd")
 
     let summariesCreated = 0
 
     for (const pref of preferences) {
-      if (pref.aiSummaryTime !== currentTime) continue
+      if (!pref.aiSummaryTime) continue
+
+      const [targetHour] = pref.aiSummaryTime.split(":").map(Number)
+      const targetTime = new Date(now)
+      targetTime.setHours(targetHour, 0, 0, 0)
+      targetTime.setDate(targetTime.getDate() - 1)
+
+      const diffMs = now.getTime() - targetTime.getTime()
+      const diffHours = diffMs / (1000 * 60 * 60)
+      if (diffMs < 0 || diffHours >= 24) continue
 
       const existingSummary = await prisma.aISummary.findUnique({
         where: {
