@@ -63,10 +63,20 @@ func ServerRouter() *gin.Engine {
 
 		feeds := getFeeds(email)
 		categories := getCategories(email)
+		currentCategory := c.Query("category")
+
+		categoryFeeds := make(map[string][]Feed)
+		for _, cat := range categories {
+			categoryFeeds[cat.Name] = getFeedsByCategory(email, cat.Name)
+		}
+
 		c.HTML(http.StatusOK, "feed.html", gin.H{
-			"Feeds":      feeds,
-			"Categories": categories,
-			"SiteURL":    SiteURL,
+			"Feeds":           feeds,
+			"Categories":      categories,
+			"AllFeeds":        feeds,
+			"CategoryFeeds":   categoryFeeds,
+			"CurrentCategory": currentCategory,
+			"SiteURL":         SiteURL,
 		})
 	})
 
@@ -372,31 +382,6 @@ func ServerRouter() *gin.Engine {
 			"Preference": pref,
 			"IsAdmin":    isAdminUser(email),
 			"Categories": categories,
-		})
-	})
-
-	r.GET("/categories", checklogin, func(c *gin.Context) {
-		email := c.GetString("email")
-		if email == "" {
-			c.String(http.StatusBadRequest, "invalid request")
-			return
-		}
-
-		categories := getCategories(email)
-		allFeeds := getFeeds(email)
-		currentCategory := c.Query("category")
-
-		categoryFeeds := make(map[string][]Feed)
-		for _, cat := range categories {
-			categoryFeeds[cat.Name] = getFeedsByCategory(email, cat.Name)
-		}
-
-		c.HTML(http.StatusOK, "categories.html", gin.H{
-			"SiteURL":         SiteURL,
-			"Categories":      categories,
-			"AllFeeds":        allFeeds,
-			"CategoryFeeds":   categoryFeeds,
-			"CurrentCategory": currentCategory,
 		})
 	})
 
