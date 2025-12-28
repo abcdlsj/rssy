@@ -62,9 +62,11 @@ func ServerRouter() *gin.Engine {
 		}
 
 		feeds := getFeeds(email)
+		categories := getCategories(email)
 		c.HTML(http.StatusOK, "feed.html", gin.H{
-			"Feeds":   feeds,
-			"SiteURL": SiteURL,
+			"Feeds":      feeds,
+			"Categories": categories,
+			"SiteURL":    SiteURL,
 		})
 	})
 
@@ -85,6 +87,7 @@ func ServerRouter() *gin.Engine {
 		}
 
 		articles := getFeedArticles(email, id)
+		categories := getCategories(email)
 		c.HTML(http.StatusOK, "articles.html", gin.H{
 			"Articles":        articles,
 			"SiteURL":         SiteURL,
@@ -99,6 +102,8 @@ func ServerRouter() *gin.Engine {
 			"HideCreateBy":  true,
 			"FeedID":        id,
 			"LastFetchedAt": feed.LastFetchedAt,
+			"Categories":    categories,
+			"Feed":          feed,
 		})
 	})
 
@@ -360,11 +365,99 @@ func ServerRouter() *gin.Engine {
 			return
 		}
 
+		categories := getCategories(email)
+
 		c.HTML(http.StatusOK, "preference.html", gin.H{
 			"SiteURL":    SiteURL,
 			"Preference": pref,
 			"IsAdmin":    isAdminUser(email),
+			"Categories": categories,
 		})
+	})
+
+	r.GET("/categories", checklogin, func(c *gin.Context) {
+		email := c.GetString("email")
+		if email == "" {
+			c.String(http.StatusBadRequest, "invalid request")
+			return
+		}
+
+		categories := getCategories(email)
+		allFeeds := getFeeds(email)
+		currentCategory := c.Query("category")
+
+		categoryFeeds := make(map[string][]Feed)
+		for _, cat := range categories {
+			categoryFeeds[cat.Name] = getFeedsByCategory(email, cat.Name)
+		}
+
+		c.HTML(http.StatusOK, "categories.html", gin.H{
+			"SiteURL":         SiteURL,
+			"Categories":      categories,
+			"AllFeeds":        allFeeds,
+			"CategoryFeeds":   categoryFeeds,
+			"CurrentCategory": currentCategory,
+		})
+	})
+
+	r.POST("/category/add", checklogin, func(c *gin.Context) {
+		email := c.GetString("email")
+		name := c.PostForm("name")
+		color := c.PostForm("color")
+
+		if email == "" || name == "" {
+			c.String(http.StatusBadRequest, "invalid request")
+			return
+		}
+
+		if color == "" {
+			color = "#007bff"
+		}
+
+		err := createCategory(name, color, email)
+		if err != nil {
+			c.String(http.StatusInternalServerError, "Failed to create category: %v", err)
+			return
+		}
+
+		c.Redirect(http.StatusFound, "/preference")
+	})
+
+	r.POST("/category/delete/:name", checklogin, func(c *gin.Context) {
+		email := c.GetString("email")
+		name := c.Param("name")
+
+		if email == "" || name == "" {
+			c.String(http.StatusBadRequest, "invalid request")
+			return
+		}
+
+		err := deleteCategory(email, name)
+		if err != nil {
+			c.String(http.StatusInternalServerError, "Failed to delete category: %v", err)
+			return
+		}
+
+		c.Redirect(http.StatusFound, "/preference")
+	})
+
+	r.POST("/feed/:id/category", checklogin, func(c *gin.Context) {
+		email := c.GetString("email")
+		id := c.Param("id")
+		category := c.PostForm("category")
+
+		if email == "" || id == "" {
+			c.String(http.StatusBadRequest, "invalid request")
+			return
+		}
+
+		err := updateFeedCategory(email, id, category)
+		if err != nil {
+			c.String(http.StatusInternalServerError, "Failed to update feed category: %v", err)
+			return
+		}
+
+		c.Redirect(http.StatusFound, "/feed")
 	})
 
 	r.POST("/preference/update", checklogin, func(c *gin.Context) {
@@ -413,7 +506,10 @@ func ServerRouter() *gin.Engine {
 			pref.EnableAutoCleanup = c.PostForm("enable_auto_cleanup") == "on"
 			pref.EnableNotification = c.PostForm("enable_notification") == "on"
 			pref.NotificationTime = c.PostForm("notification_time")
-			pref.NotificationKey = c.PostForm("notification_key")
+			pref.SendCloudAPIUser = c.PostForm("sendcloud_api_user")
+			pref.SendCloudAPIKey = c.PostForm("sendcloud_api_key")
+			pref.SendCloudFrom = c.PostForm("sendcloud_from")
+			pref.SendCloudFromName = c.PostForm("sendcloud_from_name")
 			pref.EnableAISummary = c.PostForm("enable_ai_summary") == "on"
 			pref.AISummaryTime = c.PostForm("ai_summary_time")
 			pref.AISummaryPrompt = c.PostForm("ai_summary_prompt")

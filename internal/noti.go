@@ -2,9 +2,10 @@ package internal
 
 import (
 	"bytes"
-	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
@@ -12,19 +13,20 @@ import (
 )
 
 func scheduleSendDailyNotify(email string) {
-	// 获取用户的通知设置
 	pref, err := getUserPreference(email)
 	if err != nil {
 		log.Errorf("Failed to get user preference for %s: %v", email, err)
 		return
 	}
 
-	if pref.NotificationKey == "" {
-		log.Errorf("No notification key configured for user %s", email)
+	if pref.SendCloudAPIUser == "" || pref.SendCloudAPIKey == "" || pref.SendCloudFrom == "" {
+		log.Errorf("SendCloud not configured for user %s", email)
 		return
 	}
 
-	url := fmt.Sprintf("https://www.notifyx.cn/api/v1/send/%s", pref.NotificationKey)
+	if pref.SendCloudFromName == "" {
+		pref.SendCloudFromName = "RSSy"
+	}
 
 	articles, err := getYesterdayHighlightedUnreadArticlesForUser(email)
 	if len(articles) == 0 || err != nil {
@@ -33,38 +35,40 @@ func scheduleSendDailyNotify(email string) {
 	}
 
 	var contentBuilder strings.Builder
-	contentBuilder.WriteString(fmt.Sprintf("昨日（%s）未读且高亮的 RSS 文章：\n\n",
+	contentBuilder.WriteString(fmt.Sprintf("<h2>昨日（%s）未读且高亮的 RSS 文章</h2>",
 		time.Now().Add(-24*time.Hour).Format("2006-01-02")))
+	contentBuilder.WriteString(fmt.Sprintf("<p>共 %d 篇文章</p>", len(articles)))
+	contentBuilder.WriteString("<ul>")
 
 	for _, article := range articles {
-		contentBuilder.WriteString(fmt.Sprintf("- [%s](%s)\n", article.Title, article.Link))
+		contentBuilder.WriteString(fmt.Sprintf("<li><a href=\"%s\">%s</a></li>", article.Link, article.Title))
 	}
 
-	message := map[string]string{
-		"title":       fmt.Sprintf("每日 RSS 摘要 - %s", email),
-		"content":     contentBuilder.String(),
-		"description": fmt.Sprintf("共 %d 篇文章", len(articles)),
-	}
+	contentBuilder.WriteString("</ul>")
 
-	jsonData, err := json.Marshal(message)
+	postParams := url.Values{}
+	postParams.Set("apiUser", pref.SendCloudAPIUser)
+	postParams.Set("apiKey", pref.SendCloudAPIKey)
+	postParams.Set("from", pref.SendCloudFrom)
+	postParams.Set("fromName", pref.SendCloudFromName)
+	postParams.Set("to", email)
+	postParams.Set("subject", fmt.Sprintf("每日 RSS 摘要 - %s", time.Now().Add(-24*time.Hour).Format("2006-01-02")))
+	postParams.Set("html", contentBuilder.String())
+
+	requestURI := "http://api.sendcloud.net/apiv2/mail/send"
+	postBody := bytes.NewBufferString(postParams.Encode())
+	responseHandler, err := http.Post(requestURI, "application/x-www-form-urlencoded", postBody)
 	if err != nil {
+		log.Errorf("Failed to send email: %v", err)
+		return
+	}
+	defer responseHandler.Body.Close()
+
+	bodyBytes, err := ioutil.ReadAll(responseHandler.Body)
+	if err != nil {
+		log.Errorf("Failed to read response: %v", err)
 		return
 	}
 
-	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonData))
-	if err != nil {
-		return
-	}
-	req.Header.Set("Content-Type", "application/json")
-
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		return
-	}
-	defer resp.Body.Close()
-
-	var result map[string]any
-	json.NewDecoder(resp.Body).Decode(&result)
-	log.Infof("notifyx result for %s: %v", email, result)
+	log.Infof("SendCloud result for %s: %s", email, string(bodyBytes))
 }

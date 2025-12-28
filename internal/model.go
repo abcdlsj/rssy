@@ -41,9 +41,30 @@ func init() {
 	}
 
 	if autoMigrate {
-		err = db.AutoMigrate(&Article{}, &Feed{}, &UserPreference{}, &AISummary{})
+		err = db.AutoMigrate(&Article{}, &Feed{}, &UserPreference{}, &AISummary{}, &Category{})
 		if err != nil {
 			log.Fatal(err)
+		}
+
+		existingCount := int64(0)
+		db.Model(&Category{}).Count(&existingCount)
+
+		if existingCount == 0 {
+			defaultCategories := []Category{
+				{Name: "Tech", Color: "#007bff"},
+				{Name: "News", Color: "#ff6b6b"},
+				{Name: "Games", Color: "#28a745"},
+				{Name: "Life", Color: "#ffc107"},
+			}
+
+			for _, cat := range defaultCategories {
+				err := db.Where("name = ?", cat.Name).FirstOrCreate(&cat).Error
+				if err != nil {
+					log.Errorf("Failed to create default category %s: %v", cat.Name, err)
+				} else {
+					log.Infof("Created default category: %s", cat.Name)
+				}
+			}
 		}
 	}
 
@@ -75,6 +96,16 @@ type Feed struct {
 	HideUnread        bool   `json:"hide_unread" gorm:"column:hide_unread"`
 	EnableReadability bool   `json:"enable_readability" gorm:"column:enable_readability"`
 	Highlight         bool   `json:"highlight" gorm:"column:highlight"`
+	Categories        string `json:"categories" gorm:"column:categories;type:text"`
+}
+
+type Category struct {
+	ID       int64  `json:"id" gorm:"primaryKey;column:id"`
+	Name     string `json:"name" gorm:"column:name;uniqueIndex"`
+	Color    string `json:"color" gorm:"column:color;default:#007bff"`
+	Email    string `json:"email" gorm:"column:email;index"`
+	CreateAt int64  `json:"create_at" gorm:"column:create_at"`
+	UpdateAt int64  `json:"update_at" gorm:"column:update_at"`
 }
 
 type UserPreference struct {
@@ -84,18 +115,20 @@ type UserPreference struct {
 	EnableAutoCleanup  bool   `json:"enable_auto_cleanup" gorm:"column:enable_auto_cleanup;default:false"`
 	NotificationTime   string `json:"notification_time" gorm:"column:notification_time;default:'08:00'"`
 	EnableNotification bool   `json:"enable_notification" gorm:"column:enable_notification;default:false"`
-	NotificationKey    string `json:"notification_key" gorm:"column:notification_key;type:text"`
+	SendCloudAPIUser   string `json:"sendcloud_api_user" gorm:"column:sendcloud_api_user;type:text"`
+	SendCloudAPIKey    string `json:"sendcloud_api_key" gorm:"column:sendcloud_api_key;type:text"`
+	SendCloudFrom      string `json:"sendcloud_from" gorm:"column:sendcloud_from;type:text"`
+	SendCloudFromName  string `json:"sendcloud_from_name" gorm:"column:sendcloud_from_name;type:text"`
 	AISummaryPrompt    string `json:"ai_summary_prompt" gorm:"column:ai_summary_prompt;type:text"`
 	EnableAISummary    bool   `json:"enable_ai_summary" gorm:"column:enable_ai_summary;default:false"`
 	AISummaryTime      string `json:"ai_summary_time" gorm:"column:ai_summary_time;default:'22:00'"`
-	// Admin-only settings (only for default email user)
-	EnableGitHubLogin bool   `json:"enable_github_login" gorm:"column:enable_github_login;default:false"`
-	GitHubClientID    string `json:"github_client_id" gorm:"column:github_client_id;type:text"`
-	GitHubSecret      string `json:"github_secret" gorm:"column:github_secret;type:text"`
-	OpenAIAPIKey      string `json:"openai_api_key" gorm:"column:openai_api_key;type:text"`
-	OpenAIEndpoint    string `json:"openai_endpoint" gorm:"column:openai_endpoint;type:text"`
-	CreateAt          int64  `json:"create_at" gorm:"column:create_at"`
-	UpdateAt          int64  `json:"update_at" gorm:"column:update_at"`
+	EnableGitHubLogin  bool   `json:"enable_github_login" gorm:"column:enable_github_login;default:false"`
+	GitHubClientID     string `json:"github_client_id" gorm:"column:github_client_id;type:text"`
+	GitHubSecret       string `json:"github_secret" gorm:"column:github_secret;type:text"`
+	OpenAIAPIKey       string `json:"openai_api_key" gorm:"column:openai_api_key;type:text"`
+	OpenAIEndpoint     string `json:"openai_endpoint" gorm:"column:openai_endpoint;type:text"`
+	CreateAt           int64  `json:"create_at" gorm:"column:create_at"`
+	UpdateAt           int64  `json:"update_at" gorm:"column:update_at"`
 }
 
 type AISummary struct {
@@ -286,15 +319,93 @@ func parseFeedAndSaveArticles(fd *Feed) ([]*Article, error) {
 	return articles, nil
 }
 
-func getUserPreference(email string) (*UserPreference, error) {
-	// 先从缓存中获取
-	if value, exists := GlobalMemoryCache.Get(SceneUserPref, email); exists {
-		if pref, ok := value.(*UserPreference); ok {
-			log.Infof("User preference loaded from cache: %s", email)
-			return pref, nil
-		}
+func getCategories(email string) []Category {
+	categories := []Category{}
+
+	err := globalDB.Where("email = ? OR email = ?", email, "").Order("create_at asc").Find(&categories).Error
+	if err != nil {
+		log.Infof("could not get categories: %v", err)
+		return nil
 	}
 
+	return categories
+}
+
+func createCategory(name, color, email string) error {
+	existingCount := int64(0)
+	globalDB.Model(&Category{}).Where("name = ?", name).Count(&existingCount)
+
+	if existingCount > 0 {
+		return fmt.Errorf("category %s already exists", name)
+	}
+
+	category := Category{
+		Name:     name,
+		Color:    color,
+		Email:    email,
+		CreateAt: time.Now().Unix(),
+		UpdateAt: time.Now().Unix(),
+	}
+
+	err := globalDB.Create(&category).Error
+	if err != nil {
+		return fmt.Errorf("could not create category: %v", err)
+	}
+
+	return nil
+}
+
+func deleteCategory(email, name string) error {
+	var category Category
+	err := globalDB.Where("name = ?", name).First(&category).Error
+	if err != nil {
+		return fmt.Errorf("category not found: %v", err)
+	}
+
+	if category.Email == "" {
+		return fmt.Errorf("cannot delete system category: %s", name)
+	}
+
+	if category.Email != email {
+		return fmt.Errorf("cannot delete category owned by another user")
+	}
+
+	err = globalDB.Where("name = ?", name).Delete(&Category{}).Error
+	if err != nil {
+		return fmt.Errorf("could not delete category: %v", err)
+	}
+
+	return nil
+}
+
+func updateFeedCategory(email, id, category string) error {
+	err := globalDB.Model(&Feed{}).Where("email = ? AND id = ?", email, id).Update("categories", category).Error
+	if err != nil {
+		return fmt.Errorf("could not update feed category: %v", err)
+	}
+
+	return nil
+}
+
+func getFeedsByCategory(email, category string) []Feed {
+	feeds := []Feed{}
+
+	var err error
+	if category == "" {
+		err = globalDB.Where("email = ? AND (categories = ? OR categories = '' OR categories IS NULL)", email, category).Order("create_at desc").Find(&feeds).Error
+	} else {
+		err = globalDB.Where("email = ? AND categories = ?", email, category).Order("create_at desc").Find(&feeds).Error
+	}
+
+	if err != nil {
+		log.Infof("could not get feeds by category: %v", err)
+		return nil
+	}
+
+	return feeds
+}
+
+func getUserPreference(email string) (*UserPreference, error) {
 	log.Infof("User preference loading from database: %s", email)
 	var pref UserPreference
 	err := globalDB.Where("email = ?", email).First(&pref).Error
@@ -306,7 +417,10 @@ func getUserPreference(email string) (*UserPreference, error) {
 				EnableAutoCleanup:  false,
 				NotificationTime:   "08:00",
 				EnableNotification: false,
-				NotificationKey:    "",
+				SendCloudAPIUser:   "",
+				SendCloudAPIKey:    "",
+				SendCloudFrom:      "",
+				SendCloudFromName:  "",
 				AISummaryPrompt:    getDefaultAISummaryPrompt(),
 				EnableAISummary:    false,
 				AISummaryTime:      "03:00",
@@ -334,7 +448,7 @@ func getUserPreference(email string) (*UserPreference, error) {
 
 func updateUserPreference(email string, pref *UserPreference) error {
 	pref.UpdateAt = time.Now().Unix()
-	
+
 	// 使用Select指定要更新的字段，包括零值字段
 	err := globalDB.Model(&UserPreference{}).Where("email = ?", email).Select("*").Updates(pref).Error
 	if err != nil {

@@ -35,18 +35,98 @@
     <hr />
     {{range $idx, $feed := .Feeds}}
     <div class="feed-item">
-      <a href="/feed/{{$feed.ID}}" class="feed-title">{{$feed.Title}}</a>
-      <div class="feed-url">
-        <span>{{$feed.URL}}</span>
-        <form
-          method="POST"
-          action="/feed/delete/{{$feed.ID}}"
-          style="display: inline"
-        >
-          <button type="submit" class="delete-button">(-)</button>
-        </form>
+      <div class="feed-header">
+        <a href="/feed/{{$feed.ID}}" class="feed-title">{{$feed.Title}}</a>
+        <div class="feed-actions">
+          <form
+            method="POST"
+            action="/feed/delete/{{$feed.ID}}"
+            style="display: inline"
+          >
+            <button type="submit" class="delete-button">(-)</button>
+          </form>
+          <form
+            method="POST"
+            action="/feed/{{$feed.ID}}/category"
+            style="display: inline; margin-left: 10px;"
+          >
+            <select name="category" class="category-select" onchange="this.form.submit()">
+              <option value="">No Category</option>
+              {{range $cat := $.Categories}}
+              <option value="{{$cat.Name}}" {{if eq $feed.Categories $cat.Name}}selected{{end}}>{{$cat.Name}}</option>
+              {{end}}
+            </select>
+          </form>
+        </div>
       </div>
+      <div class="feed-url">{{$feed.URL}}</div>
     </div>
     {{end}}
   </body>
+  <style>
+    .feed-item {
+      padding: 10px;
+      border-bottom: 1px solid #eee;
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+
+    .feed-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .feed-title {
+      font-weight: bold;
+      font-size: 16px;
+      flex: 1;
+    }
+
+    .feed-actions {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .feed-url {
+      color: #666;
+      font-size: 14px;
+    }
+
+    .category-select {
+      padding: 3px 6px;
+      border: 1px solid #ccc;
+      border-radius: 3px;
+      background: white;
+      font-size: 14px;
+      cursor: pointer;
+    }
+
+    .category-select:hover {
+      border-color: #999;
+    }
+
+    /* Dark mode styles */
+    @media (prefers-color-scheme: dark) {
+      .feed-item {
+        border-color: #4a5568;
+      }
+
+      .feed-url {
+        color: #a0aec0;
+      }
+
+      .category-select {
+        background: #4a5568;
+        border-color: #718096;
+        color: #e2e8f0;
+      }
+
+      .category-select:hover {
+        border-color: #a0aec0;
+      }
+    }
+  </style>
 </html>

@@ -22,17 +22,26 @@
 
   <fieldset>
     <legend>Notification Settings</legend>
-    
+
     <label>
       <input type="checkbox" name="enable_notification" {{if .Preference.EnableNotification}}checked{{end}}>
       Enable daily notifications
     </label>
-    
+
     <label for="notification_time">Notification time:</label>
     <input type="time" id="notification_time" name="notification_time" value="{{.Preference.NotificationTime}}" required>
-    
-    <label for="notification_key">Notification Key (NotifyX):</label>
-    <input type="text" id="notification_key" name="notification_key" value="{{.Preference.NotificationKey}}" placeholder="Enter your NotifyX key">
+
+    <label for="sendcloud_api_user">SendCloud API User:</label>
+    <input type="text" id="sendcloud_api_user" name="sendcloud_api_user" value="{{.Preference.SendCloudAPIUser}}" placeholder="Enter SendCloud API User">
+
+    <label for="sendcloud_api_key">SendCloud API Key:</label>
+    <input type="password" id="sendcloud_api_key" name="sendcloud_api_key" value="{{.Preference.SendCloudAPIKey}}" placeholder="Enter SendCloud API Key">
+
+    <label for="sendcloud_from">SendCloud From Email:</label>
+    <input type="email" id="sendcloud_from" name="sendcloud_from" value="{{.Preference.SendCloudFrom}}" placeholder="noreply@yourdomain.com">
+
+    <label for="sendcloud_from_name">SendCloud From Name:</label>
+    <input type="text" id="sendcloud_from_name" name="sendcloud_from_name" value="{{.Preference.SendCloudFromName}}" placeholder="RSSy">
   </fieldset>
 
   <fieldset>
@@ -48,6 +57,36 @@
     
     <label for="ai_summary_prompt">AI summary prompt:</label>
     <textarea id="ai_summary_prompt" name="ai_summary_prompt" rows="10" cols="80" required>{{.Preference.AISummaryPrompt}}</textarea>
+  </fieldset>
+
+  <fieldset>
+    <legend>Categories</legend>
+    
+    <form method="post" action="{{.SiteURL}}/category/add" class="form-inline">
+      <label for="category_name">New category name:</label>
+      <input type="text" id="category_name" name="name" required placeholder="Enter category name">
+      <label for="category_color">Color:</label>
+      <input type="color" id="category_color" name="color" value="#007bff" style="width: 50px; height: 30px;">
+      <button type="submit">Add Category</button>
+    </form>
+    
+    {{if .Categories}}
+    <div class="category-list">
+      {{range $idx, $cat := .Categories}}
+      <div class="category-item">
+        <span class="category-color" style="background-color: {{$cat.Color}};"></span>
+        <span class="category-name">{{$cat.Name}}</span>
+        {{if $cat.Email}}
+        <form method="post" action="{{$.SiteURL}}/category/delete/{{$cat.Name}}" style="display: inline;">
+          <button type="submit" class="delete-button">(-)</button>
+        </form>
+        {{else}}
+        <span class="system-marker">*</span>
+        {{end}}
+      </div>
+      {{end}}
+    </div>
+    {{end}}
   </fieldset>
 
   {{if .IsAdmin}}
@@ -159,6 +198,56 @@
     margin-top: 15px;
   }
 
+  .form-inline {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 15px;
+  }
+
+  .category-list {
+    margin-top: 15px;
+  }
+
+  .category-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 0;
+    border-bottom: 1px solid #eee;
+  }
+
+  .category-color {
+    width: 20px;
+    height: 20px;
+    border-radius: 3px;
+    display: inline-block;
+  }
+
+  .category-name {
+    flex: 1;
+  }
+
+  .delete-button {
+    padding: 4px 8px;
+    background: #dc3545;
+    color: white;
+    border: none;
+    border-radius: 3px;
+    cursor: pointer;
+  }
+
+  .system-marker {
+    color: #999;
+    font-size: 12px;
+    font-weight: bold;
+  }
+
+  .delete-button:hover {
+    background: #c82333;
+  }
+
   /* Dark mode styles */
   @media (prefers-color-scheme: dark) {
     fieldset {
@@ -199,6 +288,15 @@
       background: #2d5a3d;
       border-color: #38a169;
       color: #c6f6d5;
+    }
+
+    .delete-button {
+      background: #e53e3e;
+      color: white;
+    }
+
+    .system-marker {
+      color: #a0aec0;
     }
   }
 </style>
