@@ -442,7 +442,12 @@ func ServerRouter() *gin.Engine {
 			return
 		}
 
-		c.Redirect(http.StatusFound, "/feed")
+		currentCategory := c.PostForm("current_category")
+		if currentCategory == "" {
+			c.Redirect(http.StatusFound, "/feed")
+		} else {
+			c.Redirect(http.StatusFound, "/feed?category="+currentCategory)
+		}
 	})
 
 	r.POST("/preference/update", checklogin, func(c *gin.Context) {
