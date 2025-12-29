@@ -7,16 +7,18 @@ import (
 )
 
 var (
-	Port   = os.Getenv("PORT")
+	Port    = os.Getenv("PORT")
 	SiteURL = os.Getenv("SITE_URL")
 
 	TimeFormat = "2006-01-02 15:04:05"
-	TimeZone = time.FixedZone("CST", 8*3600)
+	TimeZone   = time.FixedZone("CST", 8*3600)
 
 	// 本地调试模式，跳过OAuth登录
 	DebugMode = os.Getenv("DEBUG_MODE") == "true"
 	// 默认邮箱，运行时必须指定
 	DefaultEmail = getRequiredEnv("DEFAULT_EMAIL")
+	// 阅读代理服务 URL 模板，使用 %s 作为文章链接的占位符
+	ReadabilityURLTemplate = os.Getenv("READABILITY_URL_TEMPLATE")
 )
 
 func getRequiredEnv(key string) string {

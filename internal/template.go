@@ -43,9 +43,9 @@ var (
 			renderer := blackfriday.NewHTMLRenderer(blackfriday.HTMLRendererParameters{
 				Flags: blackfriday.CommonHTMLFlags | blackfriday.HrefTargetBlank,
 			})
-			
+
 			extensions := blackfriday.CommonExtensions | blackfriday.AutoHeadingIDs
-			
+
 			html := blackfriday.Run([]byte(content), blackfriday.WithRenderer(renderer), blackfriday.WithExtensions(extensions))
 			return template.HTML(html)
 		},
@@ -75,6 +75,14 @@ var (
 
 		"splitLines": func(text string) []string {
 			return strings.Split(text, "\n")
+		},
+
+		"buildReadabilityURL": func(articleLink string) string {
+			template := ReadabilityURLTemplate
+			if template == "" {
+				template = "https://reada.songjian.li/read/https://r.jina.ai/%s?md=true&nocache=true"
+			}
+			return fmt.Sprintf(template, articleLink)
 		},
 	}
 
