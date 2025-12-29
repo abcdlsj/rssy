@@ -59,6 +59,36 @@
     <textarea id="ai_summary_prompt" name="ai_summary_prompt" rows="10" cols="80" required>{{.Preference.AISummaryPrompt}}</textarea>
   </fieldset>
 
+  <fieldset>
+    <legend>Categories</legend>
+
+    <form method="post" action="{{.SiteURL}}/category/add" class="form-inline">
+      <label for="category_name">New category name:</label>
+      <input type="text" id="category_name" name="name" required placeholder="Enter category name">
+      <label for="category_color">Color:</label>
+      <input type="color" id="category_color" name="color" value="#007bff" style="width: 50px; height: 30px;">
+      <button type="submit">Add Category</button>
+    </form>
+
+    {{if .Categories}}
+    <div class="category-list">
+      {{range $idx, $cat := .Categories}}
+      <div class="category-item">
+        <span class="category-color" style="background-color: {{$cat.Color}};"></span>
+        <span class="category-name">{{$cat.Name}}</span>
+        {{if $cat.Email}}
+        <form method="post" action="{{$.SiteURL}}/category/delete/{{$cat.Name}}" style="display: inline;">
+          <button type="submit" class="delete-button">(-)</button>
+        </form>
+        {{else}}
+        <span class="system-marker">*</span>
+        {{end}}
+      </div>
+      {{end}}
+    </div>
+    {{end}}
+  </fieldset>
+
   {{if .IsAdmin}}
   <fieldset class="admin-only">
     <legend>🔒 Admin Settings - OpenAI Configuration</legend>
@@ -90,36 +120,6 @@
     <button type="submit" name="action" value="save">Save Settings</button>
   </div>
 </form>
-
-<fieldset>
-  <legend>Categories</legend>
-
-  <form method="post" action="{{.SiteURL}}/category/add" class="form-inline">
-    <label for="category_name">New category name:</label>
-    <input type="text" id="category_name" name="name" required placeholder="Enter category name">
-    <label for="category_color">Color:</label>
-    <input type="color" id="category_color" name="color" value="#007bff" style="width: 50px; height: 30px;">
-    <button type="submit">Add Category</button>
-  </form>
-
-  {{if .Categories}}
-  <div class="category-list">
-    {{range $idx, $cat := .Categories}}
-    <div class="category-item">
-      <span class="category-color" style="background-color: {{$cat.Color}};"></span>
-      <span class="category-name">{{$cat.Name}}</span>
-      {{if $cat.Email}}
-      <form method="post" action="{{$.SiteURL}}/category/delete/{{$cat.Name}}" style="display: inline;">
-        <button type="submit" class="delete-button">(-)</button>
-      </form>
-      {{else}}
-      <span class="system-marker">*</span>
-      {{end}}
-    </div>
-    {{end}}
-  </div>
-  {{end}}
-</fieldset>
 
 {{if .Message}}
 <div class="message">{{.Message}}</div>
