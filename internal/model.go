@@ -3,6 +3,7 @@ package internal
 import (
 	"fmt"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/charmbracelet/log"
@@ -147,6 +148,7 @@ type FeedMetaCache struct {
 	EnableReadability bool
 	Highlight         bool
 	HideUnread        bool
+	Categories        string
 }
 
 const (
@@ -384,6 +386,8 @@ func updateFeedCategory(email, id, category string) error {
 		return fmt.Errorf("could not update feed category: %v", err)
 	}
 
+	feedID, _ := strconv.ParseInt(id, 10, 64)
+	GlobalMemoryCache.Delete(SceneFeedMeta, feedID)
 	return nil
 }
 
@@ -608,6 +612,36 @@ func getFeedArticles(email, feedID string) []Article {
 	return articles
 }
 
+func getArticlesByCategory(email, category string) []Article {
+	articles := []Article{}
+
+	var feedIDs []int64
+	var err error
+
+	if category == "" {
+		err = globalDB.Model(&Feed{}).Where("email = ? AND (categories = ? OR categories = '' OR categories IS NULL)", email, category).Pluck("id", &feedIDs).Error
+	} else {
+		err = globalDB.Model(&Feed{}).Where("email = ? AND categories = ?", email, category).Pluck("id", &feedIDs).Error
+	}
+
+	if err != nil {
+		log.Infof("could not get feed IDs for category: %v", err)
+		return nil
+	}
+
+	if len(feedIDs) == 0 {
+		return articles
+	}
+
+	err = globalDB.Where("email = ? AND feed_id IN ? AND read = false", email, feedIDs).Order("publish_at desc").Find(&articles).Error
+	if err != nil {
+		log.Infof("could not get articles by category: %v", err)
+		return nil
+	}
+
+	return articles
+}
+
 func getFeeds(email string) []Feed {
 	feeds := []Feed{}
 
@@ -668,7 +702,7 @@ func getFeedMetaWithCache(feedID int64) FeedMetaCache {
 	}
 
 	var feed Feed
-	err := globalDB.Select("enable_readability, highlight, hide_unread").Where("id = ?", feedID).First(&feed).Error
+	err := globalDB.Select("enable_readability, highlight, hide_unread, categories").Where("id = ?", feedID).First(&feed).Error
 	if err != nil {
 		log.Infof("could not get feed: %v", err)
 		return FeedMetaCache{}
@@ -678,6 +712,7 @@ func getFeedMetaWithCache(feedID int64) FeedMetaCache {
 		EnableReadability: feed.EnableReadability,
 		Highlight:         feed.Highlight,
 		HideUnread:        feed.HideUnread,
+		Categories:        feed.Categories,
 	}
 
 	GlobalMemoryCache.Set(SceneFeedMeta, feedID, meta)

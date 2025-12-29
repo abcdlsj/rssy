@@ -73,6 +73,10 @@ var (
 			return getFeedMetaWithCache(feedID).HideUnread
 		},
 
+		"getFeedCategory": func(feedID int64) string {
+			return getFeedMetaWithCache(feedID).Categories
+		},
+
 		"splitLines": func(text string) []string {
 			return strings.Split(text, "\n")
 		},

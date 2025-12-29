@@ -77,6 +77,29 @@ func ServerRouter() *gin.Engine {
 			"CategoryFeeds":   categoryFeeds,
 			"CurrentCategory": currentCategory,
 			"SiteURL":         SiteURL,
+			"InboxFeeds":      getFeedsByCategory(email, ""),
+		})
+	})
+
+	r.GET("/category/:name", checklogin, func(c *gin.Context) {
+		email := c.GetString("email")
+		category := c.Param("name")
+
+		if email == "" {
+			c.String(http.StatusBadRequest, "invalid request")
+			return
+		}
+
+		articles := getArticlesByCategory(email, category)
+		headline := category
+		if category == "" {
+			headline = "Inbox"
+		}
+
+		c.HTML(http.StatusOK, "articles.html", gin.H{
+			"Articles": articles,
+			"SiteURL":  SiteURL,
+			"Headline": headline,
 		})
 	})
 
@@ -147,6 +170,7 @@ func ServerRouter() *gin.Engine {
 		hide := c.PostForm("hide_unread") == "true"
 		enableReadability := c.PostForm("enable_readability") == "true"
 		highlight := c.PostForm("highlight") == "true"
+		category := c.PostForm("category")
 
 		email := c.GetString("email")
 		id := c.Param("id")
@@ -156,9 +180,12 @@ func ServerRouter() *gin.Engine {
 			return
 		}
 
-		log.Infof("update feed: %s, %t, %t, %t", id, hide, enableReadability, highlight)
+		log.Infof("update feed: %s, %t, %t, %t, %s", id, hide, enableReadability, highlight, category)
 
 		updateFeed(email, id, hide, enableReadability, highlight)
+		if category != "" {
+			updateFeedCategory(email, id, category)
+		}
 		c.Redirect(http.StatusFound, "/feed/"+id)
 	})
 

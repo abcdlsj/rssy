@@ -30,6 +30,14 @@
         if (activeFeeds) {
           activeFeeds.style.display = 'block';
         }
+
+        const url = new URL(window.location);
+        if (category === 'inbox') {
+          url.searchParams.delete('category');
+        } else {
+          url.searchParams.set('category', category);
+        }
+        window.history.replaceState({}, '', url);
       }
     </script>
   </head>
@@ -55,7 +63,8 @@
     <hr />
 
     <div class="category-tabs">
-      <div id="tab-all" class="category-tab {{if not .CurrentCategory}}active{{end}}" onclick="switchCategory('all')">All</div>
+      <div id="tab-inbox" class="category-tab {{if eq .CurrentCategory ""}}active{{end}}" onclick="switchCategory('inbox')">Inbox</div>
+      <div id="tab-all" class="category-tab {{if eq .CurrentCategory "all"}}active{{end}}" onclick="switchCategory('all')">All</div>
       {{range $idx, $cat := .Categories}}
       <div id="tab-{{$cat.Name}}" class="category-tab {{if eq $.CurrentCategory $cat.Name}}active{{end}}" onclick="switchCategory('{{$cat.Name}}')">
         <span class="tab-color" style="background-color: {{$cat.Color}};"></span>
@@ -67,7 +76,39 @@
       {{end}}
     </div>
 
-    <div id="feeds-all" class="feed-list {{if not .CurrentCategory}}active{{end}}">
+    <div id="feeds-inbox" class="feed-list" style="display: {{if eq .CurrentCategory ""}}block{{else}}none{{end}};">
+      {{range $idx, $feed := .InboxFeeds}}
+      <div class="feed-item">
+        <div class="feed-header">
+          <a href="/feed/{{$feed.ID}}" class="feed-title">{{$feed.Title}}</a>
+          <div class="feed-actions">
+            <form
+              method="POST"
+              action="/feed/delete/{{$feed.ID}}"
+              style="display: inline"
+            >
+              <button type="submit" class="delete-button">(-)</button>
+            </form>
+            <form
+              method="POST"
+              action="/feed/{{$feed.ID}}/category"
+              style="display: inline; margin-left: 10px;"
+            >
+              <select name="category" class="category-select" onchange="this.form.submit()">
+                <option value="">No Category</option>
+                {{range $cat := $.Categories}}
+                <option value="{{$cat.Name}}" {{if eq $feed.Categories $cat.Name}}selected{{end}}>{{$cat.Name}}</option>
+                {{end}}
+              </select>
+            </form>
+          </div>
+        </div>
+        <a href="{{$feed.URL}}" class="feed-url" target="_blank">{{$feed.URL}}</a>
+      </div>
+      {{end}}
+    </div>
+
+    <div id="feeds-all" class="feed-list" style="display: {{if eq .CurrentCategory "all"}}block{{else}}none{{end}};">
       {{range $idx, $feed := .AllFeeds}}
       <div class="feed-item">
         <div class="feed-header">
@@ -94,7 +135,7 @@
             </form>
           </div>
         </div>
-        <div class="feed-url">{{$feed.URL}}</div>
+        <a href="{{$feed.URL}}" class="feed-url" target="_blank">{{$feed.URL}}</a>
       </div>
       {{end}}
     </div>
@@ -127,7 +168,7 @@
             </form>
           </div>
         </div>
-        <div class="feed-url">{{$feed.URL}}</div>
+        <a href="{{$feed.URL}}" class="feed-url" target="_blank">{{$feed.URL}}</a>
       </div>
       {{end}}
     </div>
@@ -188,11 +229,11 @@
     }
 
     .feed-item {
-      padding: 10px;
+      padding: 5px;
       border-bottom: 1px solid #eee;
       display: flex;
       flex-direction: column;
-      gap: 5px;
+      gap: 3px;
     }
 
     .feed-header {
@@ -203,7 +244,7 @@
 
     .feed-title {
       font-weight: bold;
-      font-size: 16px;
+      font-size: 15px;
       flex: 1;
     }
 
@@ -215,7 +256,13 @@
 
     .feed-url {
       color: #666;
-      font-size: 14px;
+      font-size: 12px;
+      text-decoration: none;
+    }
+
+    .feed-url:hover {
+      color: #007bff;
+      text-decoration: underline;
     }
 
     .category-select {
@@ -257,6 +304,11 @@
 
       .feed-url {
         color: #a0aec0;
+      }
+
+      .feed-url:hover {
+        color: #63b3ed;
+        text-decoration: underline;
       }
 
       .category-select {

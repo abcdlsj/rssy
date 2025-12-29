@@ -37,6 +37,13 @@
         <input type="checkbox" id="enable_readability" name="enable_readability" value="true" {{if eq .CheckboxValues.enable_readability "true"}}checked{{end}} />
         <label for="highlight"> highlight</label>
         <input type="checkbox" id="highlight" name="highlight" value="true" {{if eq .CheckboxValues.highlight "true"}}checked{{end}} />
+        <label for="category"> cat</label>
+        <select name="category" class="category-select">
+          <option value="">No Category</option>
+          {{range $cat := .Categories}}
+          <option value="{{$cat.Name}}" {{if eq $.Feed.Categories $cat.Name}}selected{{end}}>{{$cat.Name}}</option>
+          {{end}}
+        </select>
       </form>
       {{end}}
     </div>
@@ -56,7 +63,7 @@
       {{if $HideCreateBy}}
       <span class="article-info">(at: {{timeformat $article.PublishAt}})</span>
       {{else}}
-      <span>(by: </span><a class="article-feed" href="/feed/{{$article.FeedID}}" target="_blank">{{$article.Name}}</a>,
+      <span>(by: </span><a class="article-feed" href="/feed/{{$article.FeedID}}" target="_blank">{{$article.Name}}</a>{{if getFeedCategory $article.FeedID}}, <span>cat: </span><a class="article-feed" href="/category/{{getFeedCategory $article.FeedID}}">{{getFeedCategory $article.FeedID}}</a>{{end}},
       <span class="article-info">at: {{timeformat $article.PublishAt}})</span>
       {{end}}
       {{if displayContentRead $article.Content}}
