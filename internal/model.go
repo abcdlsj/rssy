@@ -81,6 +81,7 @@ type Article struct {
 	Link      string `json:"link" gorm:"column:link"`
 	Read      bool   `json:"read" gorm:"column:read"`
 	Deleted   bool   `json:"deleted" gorm:"column:deleted"`
+	Favorite  bool   `json:"favorite" gorm:"column:favorite;default:false"`
 	CreateAt  int64  `json:"create_at" gorm:"column:create_at"`
 	PublishAt int64  `json:"publish_at" gorm:"column:publish_at"`
 	Content   string `json:"content" gorm:"column:content"`
@@ -597,6 +598,30 @@ func deleteArticle(uid, email string) error {
 		return fmt.Errorf("could not delete article: %v", err)
 	}
 	return nil
+}
+
+func toggleFavorite(uid, email string) error {
+	var article Article
+	err := globalDB.Where("uid = ? AND email = ?", uid, email).First(&article).Error
+	if err != nil {
+		return fmt.Errorf("could not find article: %v", err)
+	}
+
+	err = globalDB.Model(&Article{}).Where("uid = ? AND email = ?", uid, email).Update("favorite", !article.Favorite).Error
+	if err != nil {
+		return fmt.Errorf("could not update favorite status: %v", err)
+	}
+	return nil
+}
+
+func getFavoriteArticles(email string) []Article {
+	articles := []Article{}
+	err := globalDB.Where("email = ? AND favorite = ?", email, true).Order("publish_at desc").Find(&articles).Error
+	if err != nil {
+		log.Infof("could not get favorite articles: %v", err)
+		return nil
+	}
+	return articles
 }
 
 func getFeedArticles(email, feedID string) []Article {

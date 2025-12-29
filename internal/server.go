@@ -321,6 +321,40 @@ func ServerRouter() *gin.Engine {
 		c.Redirect(http.StatusSeeOther, "/")
 	})
 
+	r.GET("/article/:uid/favorite", checklogin, func(c *gin.Context) {
+		uid := c.Param("uid")
+		email := c.GetString("email")
+
+		if email == "" || uid == "" {
+			c.String(http.StatusBadRequest, "invalid request")
+			return
+		}
+
+		err := toggleFavorite(uid, email)
+		if err != nil {
+			c.String(http.StatusInternalServerError, err.Error())
+			return
+		}
+
+		c.Redirect(http.StatusSeeOther, c.Request.Referer())
+	})
+
+	r.GET("/favorites", checklogin, func(c *gin.Context) {
+		email := c.GetString("email")
+
+		if email == "" {
+			c.String(http.StatusBadRequest, "invalid request")
+			return
+		}
+
+		articles := getFavoriteArticles(email)
+		c.HTML(http.StatusOK, "articles.html", gin.H{
+			"Articles": articles,
+			"SiteURL":  SiteURL,
+			"Headline": "Favorites",
+		})
+	})
+
 	r.GET("/favicon.ico", func(c *gin.Context) {
 		favicon, _ := assetFs.ReadFile("assets/favicon.ico")
 		c.Data(http.StatusOK, "image/x-icon", favicon)
@@ -403,12 +437,14 @@ func ServerRouter() *gin.Engine {
 		}
 
 		categories := getCategories(email)
+		message := c.Query("message")
 
 		c.HTML(http.StatusOK, "preference.html", gin.H{
 			"SiteURL":    SiteURL,
 			"Preference": pref,
 			"IsAdmin":    isAdminUser(email),
 			"Categories": categories,
+			"Message":    message,
 		})
 	})
 
@@ -553,13 +589,7 @@ func ServerRouter() *gin.Engine {
 			}
 		}
 
-		pref, _ := getUserPreference(email)
-		c.HTML(http.StatusOK, "preference.html", gin.H{
-			"SiteURL":    SiteURL,
-			"Preference": pref,
-			"Message":    message,
-			"IsAdmin":    isAdminUser(email),
-		})
+		c.Redirect(http.StatusFound, "/preference?message="+message)
 	})
 
 	r.GET("/ai-summary", checklogin, func(c *gin.Context) {

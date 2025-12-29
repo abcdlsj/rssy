@@ -73,6 +73,11 @@
       <a href="{{buildReadabilityURL $article.Link}}" target="_blank" class="article-action-read">(+r5)</a>
       {{end}}
       <a href="/article/{{$article.Uid}}/delete" class="article-action-delete">(-d)</a>
+      {{if $article.Favorite}}
+      <a href="/article/{{$article.Uid}}/favorite" class="article-action-favorite" title="Unfavorite">★</a>
+      {{else}}
+      <a href="/article/{{$article.Uid}}/favorite" class="article-action-favorite" title="Favorite">☆</a>
+      {{end}}
     </div>
     {{end}}
     {{end}}
