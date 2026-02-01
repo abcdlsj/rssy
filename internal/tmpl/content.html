@@ -1,19 +1,24 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
   <head>
     {{template "head" .}}
   </head>
   <body>
     {{template "nav" .}}
-    <div class="article-content">
-      <div class="article-title">{{.Title}}</div>
-      <div class="article-meta">
-        <span>At: {{timeformat .PublishAt}}</span>
-      </div>
-      <hr />
-      <div class="article-body">
+    <article class="article-page">
+      <header class="article-page-header">
+        <h1 class="article-page-title">{{.Title}}</h1>
+        <div class="article-page-meta">
+          <svg class="icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"></circle>
+            <polyline points="12 6 12 12 16 14"></polyline>
+          </svg>
+          <time>{{timeformat .PublishAt}}</time>
+        </div>
+      </header>
+      <div class="article-page-body">
         {{.Content | safeHTML}}
       </div>
-    </div>
+    </article>
   </body>
 </html>

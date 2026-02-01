@@ -17,7 +17,7 @@
           tab.classList.remove('active');
         });
 
-        document.querySelectorAll('.feed-list').forEach(feeds => {
+        document.querySelectorAll('.feed-list-container').forEach(feeds => {
           feeds.style.display = 'none';
         });
 
@@ -43,283 +43,210 @@
   </head>
   <body>
     {{template "nav" .}}
-    <h1>Feeds</h1>
-    <div class="import-export-container">
-      <form action="/feed/import" method="POST" enctype="multipart/form-data" name="fileForm">
-        <div id="importbtn" onclick="getFile()" class="import-button">(+import)</div>
-        <div style="height: 0px; width: 0px; overflow: hidden">
-          <input id="upfile" type="file" value="opml" name="opml" onchange="sub(this)" />
-        </div>
-      </form>
-      <form method="GET" action="/feed/export">
-        <button type="submit" class="export-button">(+export)</button>
-      </form>
-    </div>
-    <form method="POST" action="/feed/add" class="form-container">
-      <label for="url">Enter Feed URL:</label>
-      <input type="text" id="url" name="url" required />
-      <input type="submit" value="Add Feed" />
-    </form>
-    <hr />
+    <div class="container">
+      <div class="section-header">
+        <h1>Feeds</h1>
+      </div>
 
-    <div class="category-tabs">
-      <div id="tab-inbox" class="category-tab {{if eq .CurrentCategory ""}}active{{end}}" onclick="switchCategory('inbox')">Inbox</div>
-      <div id="tab-all" class="category-tab {{if eq .CurrentCategory "all"}}active{{end}}" onclick="switchCategory('all')">All</div>
-      {{range $idx, $cat := .Categories}}
-      <div id="tab-{{$cat.Name}}" class="category-tab {{if eq $.CurrentCategory $cat.Name}}active{{end}}" onclick="switchCategory('{{$cat.Name}}')">
-        <span class="tab-color" style="background-color: {{$cat.Color}};"></span>
-        {{$cat.Name}}
-        {{if not $cat.Email}}
-        <span class="system-marker">*</span>
+      <div class="card mb-4">
+        <div style="display: flex; gap: 0.75rem; margin-bottom: 1rem;">
+          <form action="/feed/import" method="POST" enctype="multipart/form-data" name="fileForm" style="display: inline;">
+            <input type="file" id="upfile" value="opml" name="opml" onchange="sub(this)" style="display: none;">
+            <button type="button" onclick="getFile()" class="btn btn-secondary btn-sm">
+              <svg class="icon-sm" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                <polyline points="17 8 12 3 7 8"></polyline>
+                <line x1="12" y1="3" x2="12" y2="15"></line>
+              </svg>
+              Import OPML
+            </button>
+          </form>
+          <form method="GET" action="/feed/export" style="display: inline;">
+            <button type="submit" class="btn btn-secondary btn-sm">
+              <svg class="icon-sm" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                <polyline points="7 10 12 15 17 10"></polyline>
+                <line x1="12" y1="15" x2="12" y2="3"></line>
+              </svg>
+              Export OPML
+            </button>
+          </form>
+        </div>
+
+        <form method="POST" action="/feed/add" class="form-container" style="border-top: 1px solid var(--border); padding-top: 1rem;">
+          <input type="url" id="url" name="url" placeholder="Enter RSS feed URL..." required style="flex: 1; min-width: 250px;">
+          <button type="submit" class="btn btn-primary btn-sm">
+            <svg class="icon-sm" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="12" y1="5" x2="12" y2="19"></line>
+              <line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
+            Add Feed
+          </button>
+        </form>
+      </div>
+
+      <div class="category-tabs">
+        <div id="tab-inbox" class="category-tab {{if eq .CurrentCategory ""}}active{{end}}" onclick="switchCategory('inbox')">
+          <svg class="icon-sm" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="22 12 16 12 14 15 10 15 8 12 2 12"></polyline>
+            <path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"></path>
+          </svg>
+          Inbox
+        </div>
+        <div id="tab-all" class="category-tab {{if eq .CurrentCategory "all"}}active{{end}}" onclick="switchCategory('all')">
+          <svg class="icon-sm" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="8" y1="6" x2="21" y2="6"></line>
+            <line x1="8" y1="12" x2="21" y2="12"></line>
+            <line x1="8" y1="18" x2="21" y2="18"></line>
+            <line x1="3" y1="6" x2="3.01" y2="6"></line>
+            <line x1="3" y1="12" x2="3.01" y2="12"></line>
+            <line x1="3" y1="18" x2="3.01" y2="18"></line>
+          </svg>
+          All
+        </div>
+        {{range $idx, $cat := .Categories}}
+        <div id="tab-{{$cat.Name}}" class="category-tab {{if eq $.CurrentCategory $cat.Name}}active{{end}}" onclick="switchCategory('{{$cat.Name}}')">
+          <span class="tab-color" style="background-color: {{$cat.Color}};"></span>
+          {{$cat.Name}}
+          {{if not $cat.Email}}
+          <span class="system-marker">*</span>
+          {{end}}
+        </div>
+        {{end}}
+      </div>
+
+      <div id="feeds-inbox" class="feed-list-container" style="display: {{if eq .CurrentCategory ""}}block{{else}}none{{end}};">
+        {{if eq (len .InboxFeeds) 0}}
+        <div class="empty-state">
+          <svg class="empty-state-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21.5 12H16c-.7 0-1.3.4-1.6 1l-1.4 2.8a2 2 0 0 1-1.6 1h-2.7"></path>
+            <path d="M8.3 16.8L4.7 4.2a1 1 0 0 0-1.3-.6L2 4.3"></path>
+            <path d="M2 12h3.5"></path>
+            <path d="M21.5 4.2L18 16.8"></path>
+            <path d="M16.5 12h4"></path>
+          </svg>
+          <p>Inbox is empty</p>
+        </div>
+        {{else}}
+        <div class="feed-list">
+          {{range $idx, $feed := .InboxFeeds}}
+          <div class="feed-item">
+            <div class="feed-info">
+              <a href="/feed/{{$feed.ID}}" class="feed-title">{{$feed.Title}}</a>
+              <a href="{{$feed.URL}}" target="_blank" class="feed-url">{{$feed.URL}}</a>
+            </div>
+            <div class="feed-actions">
+              <form method="POST" action="/feed/{{$feed.ID}}/category" style="display: inline;">
+                <select name="category" class="category-select" onchange="this.form.submit()">
+                  <option value="">Uncategorized</option>
+                  {{range $cat := $.Categories}}
+                  <option value="{{$cat.Name}}" {{if eq $feed.Categories $cat.Name}}selected{{end}}>{{$cat.Name}}</option>
+                  {{end}}
+                </select>
+              </form>
+              <form method="POST" action="/feed/delete/{{$feed.ID}}" style="display: inline;">
+                <button type="submit" class="btn btn-ghost btn-icon" title="Delete">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 16px; height: 16px;">
+                    <polyline points="3 6 5 6 21 6"></polyline>
+                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                  </svg>
+                </button>
+              </form>
+            </div>
+          </div>
+          {{end}}
+        </div>
+        {{end}}
+      </div>
+
+      <div id="feeds-all" class="feed-list-container" style="display: {{if eq .CurrentCategory "all"}}block{{else}}none{{end}};">
+        {{if eq (len .AllFeeds) 0}}
+        <div class="empty-state">
+          <svg class="empty-state-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="8" y1="6" x2="21" y2="6"></line>
+            <line x1="8" y1="12" x2="21" y2="12"></line>
+            <line x1="8" y1="18" x2="21" y2="18"></line>
+            <line x1="3" y1="6" x2="3.01" y2="6"></line>
+            <line x1="3" y1="12" x2="3.01" y2="12"></line>
+            <line x1="3" y1="18" x2="3.01" y2="18"></line>
+          </svg>
+          <p>No feeds yet</p>
+          <p class="text-sm text-muted" style="margin-top: 0.5rem;">Click the button above to add RSS feeds</p>
+        </div>
+        {{else}}
+        <div class="feed-list">
+          {{range $idx, $feed := .AllFeeds}}
+          <div class="feed-item">
+            <div class="feed-info">
+              <a href="/feed/{{$feed.ID}}" class="feed-title">{{$feed.Title}}</a>
+              <a href="{{$feed.URL}}" target="_blank" class="feed-url">{{$feed.URL}}</a>
+            </div>
+            <div class="feed-actions">
+              <form method="POST" action="/feed/{{$feed.ID}}/category" style="display: inline;">
+                <select name="category" class="category-select" onchange="this.form.submit()">
+                  <option value="">Uncategorized</option>
+                  {{range $cat := $.Categories}}
+                  <option value="{{$cat.Name}}" {{if eq $feed.Categories $cat.Name}}selected{{end}}>{{$cat.Name}}</option>
+                  {{end}}
+                </select>
+              </form>
+              <form method="POST" action="/feed/delete/{{$feed.ID}}" style="display: inline;">
+                <button type="submit" class="btn btn-ghost btn-icon" title="Delete">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 16px; height: 16px;">
+                    <polyline points="3 6 5 6 21 6"></polyline>
+                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                  </svg>
+                </button>
+              </form>
+            </div>
+          </div>
+          {{end}}
+        </div>
+        {{end}}
+      </div>
+
+      {{range $cat := .Categories}}
+      <div id="feeds-{{$cat.Name}}" class="feed-list-container" style="display: {{if eq $.CurrentCategory $cat.Name}}block{{else}}none{{end}};">
+        {{$feeds := index $.CategoryFeeds $cat.Name}}
+        {{if eq (len $feeds) 0}}
+        <div class="empty-state">
+          <svg class="empty-state-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+          </svg>
+          <p>No feeds in this category</p>
+        </div>
+        {{else}}
+        <div class="feed-list">
+          {{range $idx, $feed := $feeds}}
+          <div class="feed-item">
+            <div class="feed-info">
+              <a href="/feed/{{$feed.ID}}" class="feed-title">{{$feed.Title}}</a>
+              <a href="{{$feed.URL}}" target="_blank" class="feed-url">{{$feed.URL}}</a>
+            </div>
+            <div class="feed-actions">
+              <form method="POST" action="/feed/{{$feed.ID}}/category" style="display: inline;">
+                <select name="category" class="category-select" onchange="this.form.submit()">
+                  <option value="">Uncategorized</option>
+                  {{range $c := $.Categories}}
+                  <option value="{{$c.Name}}" {{if eq $feed.Categories $c.Name}}selected{{end}}>{{$c.Name}}</option>
+                  {{end}}
+                </select>
+              </form>
+              <form method="POST" action="/feed/delete/{{$feed.ID}}" style="display: inline;">
+                <button type="submit" class="btn btn-ghost btn-icon" title="Delete">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 16px; height: 16px;">
+                    <polyline points="3 6 5 6 21 6"></polyline>
+                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                  </svg>
+                </button>
+              </form>
+            </div>
+          </div>
+          {{end}}
+        </div>
         {{end}}
       </div>
       {{end}}
     </div>
-
-    <div id="feeds-inbox" class="feed-list" style="display: {{if eq .CurrentCategory ""}}block{{else}}none{{end}};">
-      {{range $idx, $feed := .InboxFeeds}}
-      <div class="feed-item">
-        <div class="feed-header">
-          <a href="/feed/{{$feed.ID}}" class="feed-title">{{$feed.Title}}</a>
-          <div class="feed-actions">
-            <form
-              method="POST"
-              action="/feed/delete/{{$feed.ID}}"
-              style="display: inline"
-            >
-              <button type="submit" class="delete-button">(-)</button>
-            </form>
-            <form
-              method="POST"
-              action="/feed/{{$feed.ID}}/category"
-              style="display: inline; margin-left: 10px;"
-            >
-              <select name="category" class="category-select" onchange="this.form.submit()">
-                <option value="">No Category</option>
-                {{range $cat := $.Categories}}
-                <option value="{{$cat.Name}}" {{if eq $feed.Categories $cat.Name}}selected{{end}}>{{$cat.Name}}</option>
-                {{end}}
-              </select>
-            </form>
-          </div>
-        </div>
-        <a href="{{$feed.URL}}" class="feed-url" target="_blank">{{$feed.URL}}</a>
-      </div>
-      {{end}}
-    </div>
-
-    <div id="feeds-all" class="feed-list" style="display: {{if eq .CurrentCategory "all"}}block{{else}}none{{end}};">
-      {{range $idx, $feed := .AllFeeds}}
-      <div class="feed-item">
-        <div class="feed-header">
-          <a href="/feed/{{$feed.ID}}" class="feed-title">{{$feed.Title}}</a>
-          <div class="feed-actions">
-            <form
-              method="POST"
-              action="/feed/delete/{{$feed.ID}}"
-              style="display: inline"
-            >
-              <button type="submit" class="delete-button">(-)</button>
-            </form>
-            <form
-              method="POST"
-              action="/feed/{{$feed.ID}}/category"
-              style="display: inline; margin-left: 10px;"
-            >
-              <select name="category" class="category-select" onchange="this.form.submit()">
-                <option value="">No Category</option>
-                {{range $cat := $.Categories}}
-                <option value="{{$cat.Name}}" {{if eq $feed.Categories $cat.Name}}selected{{end}}>{{$cat.Name}}</option>
-                {{end}}
-              </select>
-            </form>
-          </div>
-        </div>
-        <a href="{{$feed.URL}}" class="feed-url" target="_blank">{{$feed.URL}}</a>
-      </div>
-      {{end}}
-    </div>
-
-    {{range $cat := .Categories}}
-    <div id="feeds-{{$cat.Name}}" class="feed-list" style="display: {{if eq $.CurrentCategory $cat.Name}}block{{else}}none{{end}};">
-      {{range $idx, $feed := index $.CategoryFeeds $cat.Name}}
-      <div class="feed-item">
-        <div class="feed-header">
-          <a href="/feed/{{$feed.ID}}" class="feed-title">{{$feed.Title}}</a>
-          <div class="feed-actions">
-            <form
-              method="POST"
-              action="/feed/delete/{{$feed.ID}}"
-              style="display: inline"
-            >
-              <button type="submit" class="delete-button">(-)</button>
-            </form>
-            <form
-              method="POST"
-              action="/feed/{{$feed.ID}}/category"
-              style="display: inline; margin-left: 10px;"
-            >
-              <select name="category" class="category-select" onchange="this.form.submit()">
-                <option value="">No Category</option>
-                {{range $c := $.Categories}}
-                <option value="{{$c.Name}}" {{if eq $feed.Categories $c.Name}}selected{{end}}>{{$c.Name}}</option>
-                {{end}}
-              </select>
-            </form>
-          </div>
-        </div>
-        <a href="{{$feed.URL}}" class="feed-url" target="_blank">{{$feed.URL}}</a>
-      </div>
-      {{end}}
-    </div>
-    {{end}}
   </body>
-  <style>
-    .category-tabs {
-      display: flex;
-      gap: 10px;
-      margin-bottom: 20px;
-      flex-wrap: wrap;
-    }
-
-    .category-tab {
-      padding: 6px 12px;
-      border: 1px solid #ccc;
-      border-radius: 3px;
-      background: #f9f9f9;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      gap: 5px;
-      font-size: 14px;
-    }
-
-    .category-tab:hover {
-      background: #e9e9e9;
-    }
-
-    .category-tab.active {
-      background: #007bff;
-      color: white;
-      border-color: #007bff;
-    }
-
-    .tab-color {
-      width: 10px;
-      height: 10px;
-      border-radius: 2px;
-    }
-
-    .system-marker {
-      color: rgba(255,255,255,0.7);
-      font-size: 11px;
-      font-weight: bold;
-    }
-
-    .category-tab.active .system-marker {
-      color: rgba(255,255,255,0.7);
-    }
-
-    .feed-list {
-      display: none;
-    }
-
-    .feed-list.active {
-      display: block;
-    }
-
-    .feed-item {
-      padding: 5px;
-      border-bottom: 1px solid #eee;
-      display: flex;
-      flex-direction: column;
-      gap: 3px;
-    }
-
-    .feed-header {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-
-    .feed-title {
-      font-weight: bold;
-      font-size: 15px;
-      flex: 1;
-    }
-
-    .feed-actions {
-      display: flex;
-      align-items: center;
-      gap: 5px;
-    }
-
-    .feed-url {
-      color: #666;
-      font-size: 12px;
-      text-decoration: none;
-    }
-
-    .feed-url:hover {
-      color: #007bff;
-      text-decoration: underline;
-    }
-
-    .category-select {
-      padding: 3px 6px;
-      border: 1px solid #ccc;
-      border-radius: 3px;
-      background: white;
-      font-size: 14px;
-      cursor: pointer;
-    }
-
-    .category-select:hover {
-      border-color: #999;
-    }
-
-    /* Dark mode styles */
-    @media (prefers-color-scheme: dark) {
-      .category-tab {
-        background: #4a5568;
-        border-color: #718096;
-        color: #e2e8f0;
-      }
-
-      .category-tab:hover {
-        background: #2d3748;
-      }
-
-      .system-marker {
-        color: #a0aec0;
-      }
-
-      .category-tab.active .system-marker {
-        color: rgba(255,255,255,0.7);
-      }
-
-      .feed-item {
-        border-color: #4a5568;
-      }
-
-      .feed-url {
-        color: #a0aec0;
-      }
-
-      .feed-url:hover {
-        color: #63b3ed;
-        text-decoration: underline;
-      }
-
-      .category-select {
-        background: #4a5568;
-        border-color: #718096;
-        color: #e2e8f0;
-      }
-
-      .category-select:hover {
-        border-color: #a0aec0;
-      }
-    }
-  </style>
 </html>

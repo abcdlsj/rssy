@@ -88,6 +88,21 @@ var (
 			}
 			return fmt.Sprintf(template, articleLink)
 		},
+
+		"getTimeCategory": func(publishAt int64) string {
+			t := time.Unix(publishAt, 0)
+			now := time.Now()
+			diff := now.Sub(t)
+			days := int(diff.Hours() / 24)
+
+			if days < 3 {
+				return "recent"
+			} else if days < 7 {
+				return "week"
+			} else {
+				return "older"
+			}
+		},
 	}
 
 	tmpl = template.Must(template.New("").Funcs(tmplFuncs).ParseFS(tmplFS, "tmpl/*.html"))

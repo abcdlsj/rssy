@@ -321,7 +321,7 @@ func ServerRouter() *gin.Engine {
 		c.Redirect(http.StatusSeeOther, "/")
 	})
 
-	r.GET("/article/:uid/favorite", checklogin, func(c *gin.Context) {
+	r.POST("/article/:uid/favorite", checklogin, func(c *gin.Context) {
 		uid := c.Param("uid")
 		email := c.GetString("email")
 

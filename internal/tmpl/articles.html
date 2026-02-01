@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
   <head>
     {{template "head" .}}
     <script>
@@ -18,68 +18,201 @@
             console.error("Error:", error);
           });
       }
+
+      function toggleStar(articleId, isStarred) {
+        fetch(`/article/${articleId}/favorite`, {
+          method: "POST",
+        })
+          .then((response) => {
+            if (response.ok) {
+              location.reload();
+            }
+          })
+          .catch((error) => {
+            console.error("Error:", error);
+          });
+      }
+
+      function markAsRead(articleId) {
+        fetch(`/article/${articleId}/read`, {
+          method: "POST",
+        })
+          .then((response) => {
+            if (response.ok) {
+              document.getElementById(`article-${articleId}`).classList.add('read');
+            }
+          })
+          .catch((error) => {
+            console.error("Error:", error);
+          });
+      }
     </script>
   </head>
   <body>
     {{template "nav" .}}
-    <h1>{{.Headline}}</h1>
-    {{if .DisplayRefresh}}
-    <div class="updatefeed-container">
-      <button class="refresh-button" onclick="refreshFeed({{.FeedID}});">
-        (+refresh)
-      </button>
-      {{if .DisplayCheckbox}}
-      <form method="POST" action="/feed/{{.FeedID}}/update" class="form-container">
-        <input type="submit" class="update-button" value="(+update)" />
-        <label for="hide_unread"> hide-unread</label>
-        <input type="checkbox" id="hide_unread" name="hide_unread" value="true" {{if eq .CheckboxValues.hide_unread "true"}}checked{{end}} />
-        <label for="enable_readability"> enable-readability</label>
-        <input type="checkbox" id="enable_readability" name="enable_readability" value="true" {{if eq .CheckboxValues.enable_readability "true"}}checked{{end}} />
-        <label for="highlight"> highlight</label>
-        <input type="checkbox" id="highlight" name="highlight" value="true" {{if eq .CheckboxValues.highlight "true"}}checked{{end}} />
-        <label for="category"> cat</label>
-        <select name="category" class="category-select">
-          <option value="">No Category</option>
-          {{range $cat := .Categories}}
-          <option value="{{$cat.Name}}" {{if eq $.Feed.Categories $cat.Name}}selected{{end}}>{{$cat.Name}}</option>
-          {{end}}
-        </select>
-      </form>
+    <div class="container">
+      <div class="section-header">
+        <h1>{{.Headline}}</h1>
+      </div>
+
+      {{if .DisplayRefresh}}
+      <div class="card mb-4">
+        <div class="card-header">
+          <div style="display: flex; align-items: center; gap: 0.75rem;">
+            <button class="btn btn-primary btn-sm" onclick="refreshFeed({{.FeedID}});">
+              <svg class="icon-sm" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.3"/>
+              </svg>
+              Refresh
+            </button>
+            <span class="text-sm text-muted">Updated {{timeformat .LastFetchedAt}}</span>
+          </div>
+        </div>
+        
+        {{if .DisplayCheckbox}}
+        <form method="POST" action="/feed/{{.FeedID}}/update" class="form-container" style="margin-top: 0.75rem;">
+          <div class="form-group">
+            <input type="checkbox" id="hide_unread" name="hide_unread" value="true" {{if eq .CheckboxValues.hide_unread "true"}}checked{{end}} />
+            <label for="hide_unread">Hide read</label>
+          </div>
+          <div class="form-group">
+            <input type="checkbox" id="enable_readability" name="enable_readability" value="true" {{if eq .CheckboxValues.enable_readability "true"}}checked{{end}} />
+            <label for="enable_readability">Reader mode</label>
+          </div>
+          <div class="form-group">
+            <input type="checkbox" id="highlight" name="highlight" value="true" {{if eq .CheckboxValues.highlight "true"}}checked{{end}} />
+            <label for="highlight">Highlight</label>
+          </div>
+          <div class="form-group">
+            <label for="category">Category</label>
+            <select name="category" class="category-select">
+              <option value="">Uncategorized</option>
+              {{range $cat := .Categories}}
+              <option value="{{$cat.Name}}" {{if eq $.Feed.Categories $cat.Name}}selected{{end}}>{{$cat.Name}}</option>
+              {{end}}
+            </select>
+          </div>
+          <button type="submit" class="btn btn-secondary btn-sm">Save</button>
+        </form>
+        {{end}}
+      </div>
+      {{end}}
+
+      {{ $HideCreateBy := .HideCreateBy }}
+      {{ $DisplayCheckbox := .DisplayCheckbox }}
+      
+      <div class="article-list">
+        {{$lastCategory := ""}}
+        {{range $idx, $article := .Articles}}
+        {{if or $DisplayCheckbox (not (getFeedHideUnread $article.FeedID))}}
+        {{$currentCategory := getTimeCategory $article.PublishAt}}
+        {{if ne $currentCategory $lastCategory}}
+        {{$lastCategory = $currentCategory}}
+        <div class="timeline-divider" data-category="{{$currentCategory}}">
+          {{if eq $currentCategory "recent"}}最近 3 天{{else if eq $currentCategory "week"}}3-7 天{{else}}7 天前{{end}}
+        </div>
+        {{end}}
+        <div class="article-item" id="article-{{$article.Uid}}">
+          <div class="article-content-wrapper">
+            <div class="article-meta">
+              {{if not $HideCreateBy}}
+              <a href="/feed/{{$article.FeedID}}" style="font-weight: 500; color: var(--muted-foreground);">{{$article.Name}}</a>
+              <span class="dot"></span>
+              {{end}}
+              <time>{{timeformat $article.PublishAt}}</time>
+              {{if getFeedCategory $article.FeedID}}
+              <span class="dot"></span>
+              <a href="/category/{{getFeedCategory $article.FeedID}}" style="color: var(--muted-foreground);">{{getFeedCategory $article.FeedID}}</a>
+              {{end}}
+              {{if getFeedHighlight $article.FeedID}}
+              <span style="color: var(--star-color); margin-left: 0.25rem;">★</span>
+              {{end}}
+              <span class="dot"></span>
+              <a href="{{$article.Link}}" target="_blank" style="color: var(--muted-foreground); font-size: 0.75rem;" title="Source">{{$article.Link}}</a>
+            </div>
+            <a href="/article/{{$article.Uid}}" class="article-title" target="_blank">
+              {{$article.Title}}
+            </a>
+          </div>
+          
+          <div class="article-actions">
+            <button 
+              onclick="toggleStar('{{$article.Uid}}', {{$article.Favorite}})" 
+              class="article-action-btn {{if $article.Favorite}}starred{{end}}"
+              title="{{if $article.Favorite}}Unfavorite{{else}}Favorite{{end}}"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="{{if $article.Favorite}}currentColor{{else}}none{{end}}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 16px; height: 16px;">
+                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+              </svg>
+            </button>
+            
+            {{if displayContentRead $article.Content}}
+            <a 
+              href="/article/{{$article.Uid}}/read" 
+              target="_blank" 
+              class="article-action-btn"
+              title="Read"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 16px; height: 16px;">
+                <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path>
+                <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path>
+              </svg>
+            </a>
+            {{end}}
+            
+            {{if enableReadabilityButton $article.FeedID}}
+            <a 
+              href="{{buildReadabilityURL $article.Link}}" 
+              target="_blank" 
+              class="article-action-btn"
+              title="Reader mode"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 16px; height: 16px;">
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="2" y1="12" x2="22" y2="12"></line>
+                <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+              </svg>
+            </a>
+            {{end}}
+            
+            <a 
+              href="/article/{{$article.Uid}}/delete" 
+              class="article-action-btn delete"
+              title="Delete"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 16px; height: 16px;">
+                <polyline points="3 6 5 6 21 6"></polyline>
+                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+              </svg>
+            </a>
+            
+            <a 
+              href="{{$article.Link}}" 
+              target="_blank" 
+              class="article-action-btn"
+              title="Source"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 16px; height: 16px;">
+                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                <polyline points="15 3 21 3 21 9"></polyline>
+                <line x1="10" y1="14" x2="21" y2="3"></line>
+              </svg>
+            </a>
+          </div>
+        </div>
+        {{end}}
+        {{end}}
+      </div>
+      
+      {{if eq (len .Articles) 0}}
+      <div class="empty-state">
+        <svg class="empty-state-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+        </svg>
+<p>No articles</p>
+      <p class="text-sm text-muted" style="margin-top: 0.5rem;">All articles have been read</p>
+      </div>
       {{end}}
     </div>
-    <span class="refresh-info">Fetched at: {{timeformat .LastFetchedAt}}</span>
-    <hr />
-    {{else}}
-    <hr />
-    {{end}}
-    {{ $HideCreateBy := .HideCreateBy }}
-    {{ $DisplayCheckbox := .DisplayCheckbox }}
-    {{range $idx, $article := .Articles}}
-    {{if or $DisplayCheckbox (not (getFeedHideUnread $article.FeedID))}}
-    <div class="article-item">
-      <a href="/article/{{$article.Uid}}" class="article-link" target="_blank">
-        {{if getFeedHighlight $article.FeedID}}⭐{{end}}{{$article.Title}}
-      </a>
-      {{if $HideCreateBy}}
-      <span class="article-info">(at: {{timeformat $article.PublishAt}})</span>
-      {{else}}
-      <span>(by: </span><a class="article-feed" href="/feed/{{$article.FeedID}}" target="_blank">{{$article.Name}}</a>{{if getFeedCategory $article.FeedID}}, <span>cat: </span><a class="article-feed" href="/category/{{getFeedCategory $article.FeedID}}">{{getFeedCategory $article.FeedID}}</a>{{end}},
-      <span class="article-info">at: {{timeformat $article.PublishAt}})</span>
-      {{end}}
-      {{if displayContentRead $article.Content}}
-      <a href="/article/{{$article.Uid}}/read" target="_blank" class="article-action-read">(+r)</a>
-      {{end}}
-      {{if enableReadabilityButton $article.FeedID}}
-      <a href="{{buildReadabilityURL $article.Link}}" target="_blank" class="article-action-read">(+r5)</a>
-      {{end}}
-      <a href="/article/{{$article.Uid}}/delete" class="article-action-delete">(-d)</a>
-      {{if $article.Favorite}}
-      <a href="/article/{{$article.Uid}}/favorite" class="article-action-favorite" title="Unfavorite">★</a>
-      {{else}}
-      <a href="/article/{{$article.Uid}}/favorite" class="article-action-favorite" title="Favorite">☆</a>
-      {{end}}
-    </div>
-    {{end}}
-    {{end}}
   </body>
 </html>
