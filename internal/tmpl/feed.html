@@ -7,246 +7,107 @@
         document.getElementById("upfile").click();
       }
 
-      function sub(obj) {
+      function sub() {
         document.fileForm.submit();
-        event.preventDefault();
       }
 
-      function switchCategory(category) {
-        document.querySelectorAll('.category-tab').forEach(tab => {
-          tab.classList.remove('active');
+      function switchCategory(category, updateURL = true) {
+        let visibleCount = 0;
+
+        document.querySelectorAll(".category-tab").forEach((tab) => {
+          tab.classList.toggle("active", tab.dataset.category === category);
         });
 
-        document.querySelectorAll('.feed-list-container').forEach(feeds => {
-          feeds.style.display = 'none';
+        document.querySelectorAll(".feed-item").forEach((feed) => {
+          const feedCategory = feed.dataset.category || "";
+          const visible = category === "all" ||
+            (category === "inbox" ? feedCategory === "" : feedCategory === category);
+          feed.hidden = !visible;
+          if (visible) visibleCount++;
         });
 
-        const activeTab = document.getElementById(`tab-${category}`);
-        if (activeTab) {
-          activeTab.classList.add('active');
-        }
+        const empty = document.getElementById("feeds-empty");
+        if (empty) empty.hidden = visibleCount !== 0;
 
-        const activeFeeds = document.getElementById(`feeds-${category}`);
-        if (activeFeeds) {
-          activeFeeds.style.display = 'block';
+        if (updateURL) {
+          const url = new URL(window.location);
+          if (category === "inbox") {
+            url.searchParams.delete("category");
+          } else {
+            url.searchParams.set("category", category);
+          }
+          window.history.replaceState({}, "", url);
         }
-
-        const url = new URL(window.location);
-        if (category === 'inbox') {
-          url.searchParams.delete('category');
-        } else {
-          url.searchParams.set('category', category);
-        }
-        window.history.replaceState({}, '', url);
       }
+
+      document.addEventListener("DOMContentLoaded", function () {
+        const tabs = document.querySelector(".category-tabs");
+        const initialCategory = tabs ? tabs.dataset.currentCategory : "inbox";
+
+        document.querySelectorAll(".category-tab").forEach((tab) => {
+          tab.addEventListener("click", function () {
+            switchCategory(this.dataset.category);
+          });
+        });
+
+        switchCategory(initialCategory, false);
+      });
     </script>
   </head>
   <body>
     {{template "nav" .}}
-    <div class="container">
-      <div class="section-header">
-        <h1>Feeds</h1>
-      </div>
+    <h1>Feeds</h1>
 
-      <div class="card mb-4">
-        <div style="display: flex; gap: 0.75rem; margin-bottom: 1rem;">
-          <form action="/feed/import" method="POST" enctype="multipart/form-data" name="fileForm" style="display: inline;">
-            <input type="file" id="upfile" value="opml" name="opml" onchange="sub(this)" style="display: none;">
-            <button type="button" onclick="getFile()" class="btn btn-secondary btn-sm">
-              <svg class="icon-sm" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                <polyline points="17 8 12 3 7 8"></polyline>
-                <line x1="12" y1="3" x2="12" y2="15"></line>
-              </svg>
-              Import OPML
-            </button>
-          </form>
-          <form method="GET" action="/feed/export" style="display: inline;">
-            <button type="submit" class="btn btn-secondary btn-sm">
-              <svg class="icon-sm" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                <polyline points="7 10 12 15 17 10"></polyline>
-                <line x1="12" y1="15" x2="12" y2="3"></line>
-              </svg>
-              Export OPML
-            </button>
-          </form>
-        </div>
+    <div class="import-export-container">
+      <form action="/feed/import" method="POST" enctype="multipart/form-data" name="fileForm">
+        <button type="button" onclick="getFile()" class="import-button">(+import)</button>
+        <input id="upfile" type="file" value="opml" name="opml" onchange="sub()" />
+      </form>
+      <form method="GET" action="/feed/export">
+        <button type="submit" class="export-button">(+export)</button>
+      </form>
+    </div>
 
-        <form method="POST" action="/feed/add" class="form-container" style="border-top: 1px solid var(--border); padding-top: 1rem;">
-          <input type="url" id="url" name="url" placeholder="Enter RSS feed URL..." required style="flex: 1; min-width: 250px;">
-          <button type="submit" class="btn btn-primary btn-sm">
-            <svg class="icon-sm" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <line x1="12" y1="5" x2="12" y2="19"></line>
-              <line x1="5" y1="12" x2="19" y2="12"></line>
-            </svg>
-            Add Feed
-          </button>
-        </form>
-      </div>
+    <form method="POST" action="/feed/add" class="form-container">
+      <label for="url">Enter Feed URL:</label>
+      <input type="url" id="url" name="url" required />
+      <input type="submit" value="Add Feed" />
+    </form>
+    <hr />
 
-      <div class="category-tabs">
-        <div id="tab-inbox" class="category-tab {{if eq .CurrentCategory ""}}active{{end}}" onclick="switchCategory('inbox')">
-          <svg class="icon-sm" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <polyline points="22 12 16 12 14 15 10 15 8 12 2 12"></polyline>
-            <path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"></path>
-          </svg>
-          Inbox
-        </div>
-        <div id="tab-all" class="category-tab {{if eq .CurrentCategory "all"}}active{{end}}" onclick="switchCategory('all')">
-          <svg class="icon-sm" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <line x1="8" y1="6" x2="21" y2="6"></line>
-            <line x1="8" y1="12" x2="21" y2="12"></line>
-            <line x1="8" y1="18" x2="21" y2="18"></line>
-            <line x1="3" y1="6" x2="3.01" y2="6"></line>
-            <line x1="3" y1="12" x2="3.01" y2="12"></line>
-            <line x1="3" y1="18" x2="3.01" y2="18"></line>
-          </svg>
-          All
-        </div>
-        {{range $idx, $cat := .Categories}}
-        <div id="tab-{{$cat.Name}}" class="category-tab {{if eq $.CurrentCategory $cat.Name}}active{{end}}" onclick="switchCategory('{{$cat.Name}}')">
-          <span class="tab-color" style="background-color: {{$cat.Color}};"></span>
-          {{$cat.Name}}
-          {{if not $cat.Email}}
-          <span class="system-marker">*</span>
-          {{end}}
-        </div>
-        {{end}}
-      </div>
-
-      <div id="feeds-inbox" class="feed-list-container" style="display: {{if eq .CurrentCategory ""}}block{{else}}none{{end}};">
-        {{if eq (len .InboxFeeds) 0}}
-        <div class="empty-state">
-          <svg class="empty-state-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M21.5 12H16c-.7 0-1.3.4-1.6 1l-1.4 2.8a2 2 0 0 1-1.6 1h-2.7"></path>
-            <path d="M8.3 16.8L4.7 4.2a1 1 0 0 0-1.3-.6L2 4.3"></path>
-            <path d="M2 12h3.5"></path>
-            <path d="M21.5 4.2L18 16.8"></path>
-            <path d="M16.5 12h4"></path>
-          </svg>
-          <p>Inbox is empty</p>
-        </div>
-        {{else}}
-        <div class="feed-list">
-          {{range $idx, $feed := .InboxFeeds}}
-          <div class="feed-item">
-            <div class="feed-info">
-              <a href="/feed/{{$feed.ID}}" class="feed-title">{{$feed.Title}}</a>
-              <a href="{{$feed.URL}}" target="_blank" class="feed-url">{{$feed.URL}}</a>
-            </div>
-            <div class="feed-actions">
-              <form method="POST" action="/feed/{{$feed.ID}}/category" style="display: inline;">
-                <select name="category" class="category-select" onchange="this.form.submit()">
-                  <option value="">Uncategorized</option>
-                  {{range $cat := $.Categories}}
-                  <option value="{{$cat.Name}}" {{if eq $feed.Categories $cat.Name}}selected{{end}}>{{$cat.Name}}</option>
-                  {{end}}
-                </select>
-              </form>
-              <form method="POST" action="/feed/delete/{{$feed.ID}}" style="display: inline;">
-                <button type="submit" class="btn btn-ghost btn-icon" title="Delete">
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 16px; height: 16px;">
-                    <polyline points="3 6 5 6 21 6"></polyline>
-                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                  </svg>
-                </button>
-              </form>
-            </div>
-          </div>
-          {{end}}
-        </div>
-        {{end}}
-      </div>
-
-      <div id="feeds-all" class="feed-list-container" style="display: {{if eq .CurrentCategory "all"}}block{{else}}none{{end}};">
-        {{if eq (len .AllFeeds) 0}}
-        <div class="empty-state">
-          <svg class="empty-state-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-            <line x1="8" y1="6" x2="21" y2="6"></line>
-            <line x1="8" y1="12" x2="21" y2="12"></line>
-            <line x1="8" y1="18" x2="21" y2="18"></line>
-            <line x1="3" y1="6" x2="3.01" y2="6"></line>
-            <line x1="3" y1="12" x2="3.01" y2="12"></line>
-            <line x1="3" y1="18" x2="3.01" y2="18"></line>
-          </svg>
-          <p>No feeds yet</p>
-          <p class="text-sm text-muted" style="margin-top: 0.5rem;">Click the button above to add RSS feeds</p>
-        </div>
-        {{else}}
-        <div class="feed-list">
-          {{range $idx, $feed := .AllFeeds}}
-          <div class="feed-item">
-            <div class="feed-info">
-              <a href="/feed/{{$feed.ID}}" class="feed-title">{{$feed.Title}}</a>
-              <a href="{{$feed.URL}}" target="_blank" class="feed-url">{{$feed.URL}}</a>
-            </div>
-            <div class="feed-actions">
-              <form method="POST" action="/feed/{{$feed.ID}}/category" style="display: inline;">
-                <select name="category" class="category-select" onchange="this.form.submit()">
-                  <option value="">Uncategorized</option>
-                  {{range $cat := $.Categories}}
-                  <option value="{{$cat.Name}}" {{if eq $feed.Categories $cat.Name}}selected{{end}}>{{$cat.Name}}</option>
-                  {{end}}
-                </select>
-              </form>
-              <form method="POST" action="/feed/delete/{{$feed.ID}}" style="display: inline;">
-                <button type="submit" class="btn btn-ghost btn-icon" title="Delete">
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 16px; height: 16px;">
-                    <polyline points="3 6 5 6 21 6"></polyline>
-                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                  </svg>
-                </button>
-              </form>
-            </div>
-          </div>
-          {{end}}
-        </div>
-        {{end}}
-      </div>
-
+    <div class="category-tabs" data-current-category="{{if eq .CurrentCategory ""}}inbox{{else}}{{.CurrentCategory}}{{end}}">
+      <button type="button" class="category-tab" data-category="inbox">Inbox</button>
+      <button type="button" class="category-tab" data-category="all">All</button>
       {{range $cat := .Categories}}
-      <div id="feeds-{{$cat.Name}}" class="feed-list-container" style="display: {{if eq $.CurrentCategory $cat.Name}}block{{else}}none{{end}};">
-        {{$feeds := index $.CategoryFeeds $cat.Name}}
-        {{if eq (len $feeds) 0}}
-        <div class="empty-state">
-          <svg class="empty-state-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
-          </svg>
-          <p>No feeds in this category</p>
+      <button type="button" class="category-tab" data-category="{{$cat.Name}}">
+        <span class="tab-color" style="background-color: {{$cat.Color}};"></span>
+        {{$cat.Name}}{{if not $cat.Email}}<span class="system-marker">*</span>{{end}}
+      </button>
+      {{end}}
+    </div>
+
+    <div class="feed-list">
+      {{range $feed := .AllFeeds}}
+      <div class="feed-item" data-category="{{$feed.Categories}}">
+        <a href="/feed/{{$feed.ID}}" class="feed-title">{{$feed.Title}}</a>
+        <a href="{{$feed.URL}}" target="_blank" class="feed-url">{{$feed.URL}}</a>
+        <div class="feed-actions">
+          <form method="POST" action="/feed/{{$feed.ID}}/category">
+            <select name="category" class="category-select" onchange="this.form.submit()" aria-label="Category for {{$feed.Title}}">
+              <option value="">Uncategorized</option>
+              {{range $cat := $.Categories}}
+              <option value="{{$cat.Name}}" {{if eq $feed.Categories $cat.Name}}selected{{end}}>{{$cat.Name}}</option>
+              {{end}}
+            </select>
+          </form>
+          <form method="POST" action="/feed/delete/{{$feed.ID}}">
+            <button type="submit" class="delete-button" title="Delete feed">(-)</button>
+          </form>
         </div>
-        {{else}}
-        <div class="feed-list">
-          {{range $idx, $feed := $feeds}}
-          <div class="feed-item">
-            <div class="feed-info">
-              <a href="/feed/{{$feed.ID}}" class="feed-title">{{$feed.Title}}</a>
-              <a href="{{$feed.URL}}" target="_blank" class="feed-url">{{$feed.URL}}</a>
-            </div>
-            <div class="feed-actions">
-              <form method="POST" action="/feed/{{$feed.ID}}/category" style="display: inline;">
-                <select name="category" class="category-select" onchange="this.form.submit()">
-                  <option value="">Uncategorized</option>
-                  {{range $c := $.Categories}}
-                  <option value="{{$c.Name}}" {{if eq $feed.Categories $c.Name}}selected{{end}}>{{$c.Name}}</option>
-                  {{end}}
-                </select>
-              </form>
-              <form method="POST" action="/feed/delete/{{$feed.ID}}" style="display: inline;">
-                <button type="submit" class="btn btn-ghost btn-icon" title="Delete">
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 16px; height: 16px;">
-                    <polyline points="3 6 5 6 21 6"></polyline>
-                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                  </svg>
-                </button>
-              </form>
-            </div>
-          </div>
-          {{end}}
-        </div>
-        {{end}}
       </div>
       {{end}}
     </div>
+
+    <p id="feeds-empty" class="empty-state" hidden>No feeds in this category.</p>
   </body>
 </html>

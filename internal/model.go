@@ -484,15 +484,7 @@ func cleanupReadArticles(email string) (int64, error) {
 }
 
 func getDefaultAISummaryPrompt() string {
-	return `请分析并总结今天的RSS文章内容，按照以下要求：
-
-1. 整体概述：简要概括今天文章的主要话题和趋势
-2. 分类整理：将文章按主题分类（如：技术、科学、商业、社会等）
-3. 重点摘要：挑选3-5篇最重要或最有价值的文章进行详细摘要
-4. 关键观点：提取今天文章中的关键观点和见解
-5. 趋势分析：如果发现某些话题或观点重复出现，请指出
-
-请使用清晰的结构化格式输出，方便阅读和理解。`
+	return `优先关注技术进展、产品变化和有独立判断的内容。使用简洁中文，合并重复话题，不要为了凑数推荐信息不足的文章。`
 }
 
 func getAISummariesForUser(email string, limit int) ([]AISummary, error) {
@@ -545,13 +537,42 @@ func getArticlesForAISummary(email string, date time.Time) ([]Article, error) {
 
 	var articles []Article
 	err := globalDB.Where("email = ? AND publish_at >= ? AND publish_at < ? AND deleted = false",
-		email, start.Unix(), end.Unix()).Find(&articles).Error
+		email, start.Unix(), end.Unix()).Order("publish_at desc").Find(&articles).Error
 	if err != nil {
 		return nil, fmt.Errorf("could not get articles for AI summary: %v", err)
 	}
 
 	log.Infof("Found %d articles for AI summary", len(articles))
 	return articles, nil
+}
+
+func getFeedCategoriesForAISummary(email string, articles []Article) (map[int64]string, error) {
+	feedIDs := make([]int64, 0)
+	seen := make(map[int64]struct{})
+	for _, article := range articles {
+		if article.FeedID == 0 {
+			continue
+		}
+		if _, exists := seen[article.FeedID]; exists {
+			continue
+		}
+		seen[article.FeedID] = struct{}{}
+		feedIDs = append(feedIDs, article.FeedID)
+	}
+
+	categories := make(map[int64]string, len(feedIDs))
+	if len(feedIDs) == 0 {
+		return categories, nil
+	}
+
+	var feeds []Feed
+	if err := globalDB.Select("id", "categories").Where("email = ? AND id IN ?", email, feedIDs).Find(&feeds).Error; err != nil {
+		return nil, fmt.Errorf("could not get feed categories for AI summary: %v", err)
+	}
+	for _, feed := range feeds {
+		categories[feed.ID] = feed.Categories
+	}
+	return categories, nil
 }
 
 func getSetFeed(url, email, title string, lastFetchedAt int64) (int64, error) {

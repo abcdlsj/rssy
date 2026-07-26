@@ -5,66 +5,51 @@
   </head>
   <body>
     {{template "nav" .}}
-    <div class="container">
-      <div class="section-header">
-        <h1>Stream</h1>
-        <span class="text-sm text-muted">
-          from <a href="https://buzzing.cc/" target="_blank" style="font-weight: 500;">buzzing.cc</a>
-          <span style="margin-left: 0.5rem;">Updated {{.LastFetchTime | timeformat}}</span>
-        </span>
+    <h1>Stream</h1>
+    <div class="stream-meta">
+      <span>from <a href="https://buzzing.cc/" target="_blank">buzzing.cc</a></span>
+      <span> (last fetched at {{.LastFetchTime | timeformat}})</span>
+    </div>
+    <div class="stream-container">
+      <div class="sidebar">
+        <h2>Groups</h2>
+        {{range $index, $group := .Groups}}
+        <div class="group-header {{if eq $index 0}}active{{end}}" data-index="{{$index}}">
+          {{$group.Title}}
+        </div>
+        {{end}}
       </div>
-
-      <div class="stream-container">
-        <div class="stream-sidebar">
-          <h2>Groups</h2>
-          {{range $index, $group := .Groups}}
-          <div class="group-item {{if eq $index 0}}active{{end}}" data-index="{{$index}}">
-            {{$group.Title}}
-          </div>
-          {{end}}
-        </div>
-
-        <div class="stream-content">
-          {{range $index, $group := .Groups}}
-          <div class="stream-group-content {{if eq $index 0}}active{{end}}" data-index="{{$index}}">
-            {{range .Items}}
-            <div class="stream-item">
-              <div class="stream-summary">
-                <a href="{{.URL}}" target="_blank">{{.Summary}}</a>
-              </div>
-              <div class="stream-meta">
-                <span style="font-weight: 500;">{{.Title}}</span>
-                {{if .Author.Name}}
-                <span class="dot"></span>
-                <span>by <a href="{{.Author.URL}}" target="_blank">{{.Author.Name}}</a></span>
-                {{end}}
-                {{if gt (len .Links) 0}}
-                <span class="dot"></span>
-                <a href="{{(index .Links 0).URL}}" target="_blank">Source</a>
-                {{end}}
-                <span class="dot"></span>
-                <time>{{.OriginalPublished | buzTimeformat}}</time>
-              </div>
+      <div class="stream-group-main-content">
+        {{range $index, $group := .Groups}}
+        <div class="group-content {{if eq $index 0}}active{{end}}" data-index="{{$index}}">
+          {{range .Items}}
+          <div class="stream-item">
+            <div class="stream-summary">
+              <a href="{{.URL}}" target="_blank">{{.Summary}}</a>
             </div>
-            {{end}}
+            <span class="stream-title">({{.Title}})</span>
+            <span class="stream-info">
+              {{if .Author.Name}}by <a href="{{.Author.URL}}" target="_blank">{{.Author.Name}}</a>,{{end}}
+              {{if gt (len .Links) 0}}<a href="{{(index .Links 0).URL}}" target="_blank">(+origin)</a>{{end}}
+              {{.OriginalPublished | buzTimeformat}}
+            </span>
           </div>
           {{end}}
         </div>
+        {{end}}
       </div>
     </div>
-
     <script>
       document.addEventListener("DOMContentLoaded", function () {
-        const headers = document.querySelectorAll(".group-item");
-        headers.forEach((header) => {
+        document.querySelectorAll(".group-header").forEach((header) => {
           header.addEventListener("click", function () {
-            const index = this.getAttribute("data-index");
+            const index = this.dataset.index;
             document
-              .querySelectorAll(".group-item, .stream-group-content")
-              .forEach((el) => el.classList.remove("active"));
+              .querySelectorAll(".group-header, .group-content")
+              .forEach((element) => element.classList.remove("active"));
             this.classList.add("active");
             document
-              .querySelector(`.stream-group-content[data-index="${index}"]`)
+              .querySelector(`.group-content[data-index="${index}"]`)
               .classList.add("active");
           });
         });

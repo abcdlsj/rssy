@@ -39,15 +39,32 @@ var (
 		},
 
 		"markdownToHTML": func(content string) template.HTML {
-			// Configure blackfriday to render nice HTML
 			renderer := blackfriday.NewHTMLRenderer(blackfriday.HTMLRendererParameters{
-				Flags: blackfriday.CommonHTMLFlags | blackfriday.HrefTargetBlank,
+				Flags: blackfriday.CommonHTMLFlags | blackfriday.HrefTargetBlank | blackfriday.SkipHTML,
 			})
 
 			extensions := blackfriday.CommonExtensions | blackfriday.AutoHeadingIDs
 
 			html := blackfriday.Run([]byte(content), blackfriday.WithRenderer(renderer), blackfriday.WithExtensions(extensions))
 			return template.HTML(html)
+		},
+
+		"summaryNeedsPreview": func(content string) bool {
+			return len([]rune(content)) > 2400
+		},
+
+		"summaryPreview": func(content string) string {
+			const limit = 2400
+			runes := []rune(strings.TrimSpace(content))
+			if len(runes) <= limit {
+				return content
+			}
+
+			preview := string(runes[:limit-1])
+			if paragraphEnd := strings.LastIndex(preview, "\n\n"); paragraphEnd > limit*2/3 {
+				preview = preview[:paragraphEnd]
+			}
+			return strings.TrimSpace(preview) + "…"
 		},
 
 		"displayContentRead": func(content string) bool {

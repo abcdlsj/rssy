@@ -11,6 +11,7 @@ require (
 	github.com/mmcdole/gofeed v1.3.0
 	github.com/russross/blackfriday/v2 v2.1.0
 	github.com/sashabaranov/go-openai v1.28.2
+	golang.org/x/net v0.27.0
 	gorm.io/driver/postgres v1.5.9
 	gorm.io/driver/sqlite v1.5.6
 	gorm.io/gorm v1.25.11
@@ -59,7 +60,6 @@ require (
 	golang.org/x/arch v0.8.0 // indirect
 	golang.org/x/crypto v0.25.0 // indirect
 	golang.org/x/exp v0.0.0-20240716175740-e3f259677ff7 // indirect
-	golang.org/x/net v0.27.0 // indirect
 	golang.org/x/sync v0.7.0 // indirect
 	golang.org/x/sys v0.22.0 // indirect
 	golang.org/x/text v0.16.0 // indirect
