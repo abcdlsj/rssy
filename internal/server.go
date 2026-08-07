@@ -368,8 +368,15 @@ func ServerRouter() *gin.Engine {
 			return
 		}
 
-		redirectURL := fmt.Sprintf("https://github.com/login/oauth/authorize?client_id=%s&scope=user&redirect_uri=%s",
-			adminPref.GitHubClientID, fmt.Sprintf("%s/login/callback", SiteURL))
+		state, err := newOAuthState()
+		if err != nil {
+			c.String(http.StatusInternalServerError, "<html><body><h1>Failed to start login</h1></body></html>")
+			return
+		}
+
+		http.SetCookie(c.Writer, makeCookie("oauth_state", state, 10*60))
+		redirectURL := fmt.Sprintf("https://github.com/login/oauth/authorize?client_id=%s&scope=user&state=%s&redirect_uri=%s",
+			adminPref.GitHubClientID, state, fmt.Sprintf("%s/login/callback", SiteURL))
 		c.Redirect(http.StatusSeeOther, redirectURL)
 	})
 
@@ -383,6 +390,14 @@ func ServerRouter() *gin.Engine {
 			return
 		}
 
+		state := c.Query("state")
+		cookieState, _ := c.Cookie("oauth_state")
+		http.SetCookie(c.Writer, makeCookie("oauth_state", "", -1))
+		if state == "" || cookieState == "" || state != cookieState {
+			c.String(http.StatusBadRequest, "<html><body><h1>Invalid OAuth state</h1></body></html>")
+			return
+		}
+
 		ak, sk, expiresIn := getGithubAccessToken(code, "", adminPref.GitHubClientID, adminPref.GitHubSecret)
 		if ak == "" {
 			c.String(http.StatusInternalServerError, "<html><body><h1>Failed to login</h1></body></html>")
@@ -390,8 +405,15 @@ func ServerRouter() *gin.Engine {
 		}
 
 		login, email := getGithubData(ak)
-		if login == "" {
+		if login == "" || email == "" {
 			c.String(http.StatusInternalServerError, "<html><body><h1>Failed to login</h1></body></html>")
+			return
+		}
+
+		// 首次登录自动注册：创建该用户的默认偏好
+		if _, err := getUserPreference(email); err != nil {
+			log.Errorf("Failed to initialize account for new user %s: %v", email, err)
+			c.String(http.StatusInternalServerError, "<html><body><h1>Failed to initialize account</h1></body></html>")
 			return
 		}
 
@@ -404,6 +426,11 @@ func ServerRouter() *gin.Engine {
 
 		setCookieSession(c.Writer, "s", session)
 		c.Redirect(http.StatusSeeOther, "/")
+	})
+
+	r.GET("/logout", func(c *gin.Context) {
+		http.SetCookie(c.Writer, makeCookie("s", "", -1))
+		c.Redirect(http.StatusSeeOther, "/login")
 	})
 
 	r.GET("/stream", checklogin, func(c *gin.Context) {

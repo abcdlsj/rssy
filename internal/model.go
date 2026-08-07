@@ -70,6 +70,11 @@ func init() {
 	}
 
 	globalDB = db
+
+	syncGitHubLoginFromEnv()
+	if checkAnyUserHasGitHubLogin() && !CipherKeySet {
+		log.Fatal("CIPHER_KEY is required when GitHub login/registration is enabled, please set a random 32-byte key")
+	}
 }
 
 type Article struct {
@@ -336,7 +341,7 @@ func getCategories(email string) []Category {
 
 func createCategory(name, color, email string) error {
 	existingCount := int64(0)
-	globalDB.Model(&Category{}).Where("name = ?", name).Count(&existingCount)
+	globalDB.Model(&Category{}).Where("name = ? AND (email = ? OR email = '')", name, email).Count(&existingCount)
 
 	if existingCount > 0 {
 		return fmt.Errorf("category %s already exists", name)
@@ -360,7 +365,7 @@ func createCategory(name, color, email string) error {
 
 func deleteCategory(email, name string) error {
 	var category Category
-	err := globalDB.Where("name = ?", name).First(&category).Error
+	err := globalDB.Where("name = ? AND (email = ? OR email = '')", name, email).First(&category).Error
 	if err != nil {
 		return fmt.Errorf("category not found: %v", err)
 	}
@@ -373,7 +378,7 @@ func deleteCategory(email, name string) error {
 		return fmt.Errorf("cannot delete category owned by another user")
 	}
 
-	err = globalDB.Where("name = ?", name).Delete(&Category{}).Error
+	err = globalDB.Where("name = ? AND email = ?", name, email).Delete(&Category{}).Error
 	if err != nil {
 		return fmt.Errorf("could not delete category: %v", err)
 	}
@@ -700,12 +705,12 @@ func getFeeds(email string) []Feed {
 	return feeds
 }
 
-func getEmailsFeeds(emails []string) []Feed {
+func getAllFeeds() []Feed {
 	feeds := []Feed{}
 
-	err := globalDB.Where("email in ?", emails).Order("create_at desc").Find(&feeds).Error
+	err := globalDB.Order("create_at desc").Find(&feeds).Error
 	if err != nil {
-		log.Infof("could not get feeds: %v", err)
+		log.Infof("could not get all feeds: %v", err)
 		return nil
 	}
 
@@ -779,6 +784,31 @@ func checkAnyUserHasGitHubLogin() bool {
 		return false
 	}
 	return adminPref.EnableGitHubLogin
+}
+
+// syncGitHubLoginFromEnv 在启动时根据 GH_CLIENT_ID/GH_SECRET 自动启用 GitHub 登录/注册。
+// 设置这两个环境变量即相当于开放注册，其他人可通过 GitHub 账号登录。
+func syncGitHubLoginFromEnv() {
+	if GHClientID == "" || GHSecret == "" {
+		return
+	}
+
+	pref, err := getUserPreference(DefaultEmail)
+	if err != nil {
+		log.Errorf("failed to load admin preference for GitHub login bootstrap: %v", err)
+		return
+	}
+
+	pref.GitHubClientID = GHClientID
+	pref.GitHubSecret = GHSecret
+	pref.EnableGitHubLogin = true
+
+	if err := updateUserPreference(pref.Email, pref); err != nil {
+		log.Errorf("failed to save GitHub login config from environment: %v", err)
+		return
+	}
+
+	log.Infof("GitHub login/registration enabled from GH_CLIENT_ID/GH_SECRET")
 }
 
 func getYesterdayHighlightedUnreadArticlesForUser(email string) ([]Article, error) {

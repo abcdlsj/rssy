@@ -11,8 +11,7 @@ import (
 
 var (
 	fetchParseJob = FeedParseJob{
-		emails: []string{DefaultEmail},
-		tk:     time.NewTicker(30 * time.Minute),
+		tk: time.NewTicker(30 * time.Minute),
 	}
 
 	dailyNotifyJob = &DailyNotifyJob{
@@ -25,8 +24,7 @@ var (
 )
 
 type FeedParseJob struct {
-	tk     *time.Ticker
-	emails []string
+	tk *time.Ticker
 }
 
 type DailyNotifyJob struct {
@@ -58,7 +56,7 @@ func (t *FeedParseJob) Start() {
 	for range t.tk.C {
 		log.Infof("ticker to get feed, now: %v", time.Now())
 
-		feeds := getEmailsFeeds(t.emails)
+		feeds := getAllFeeds()
 
 		for _, feedItem := range feeds {
 			if time.Now().Before(time.Unix(feedItem.LastFetchedAt+3600, 0)) {
@@ -121,7 +119,6 @@ func (t *DailyNotifyJob) Start() {
 func (t *DailyNotifyJob) Stop() {
 	t.tk.Stop()
 }
-
 
 func (t *AISummaryJob) Start() {
 	log.Infof("start AI summary job")

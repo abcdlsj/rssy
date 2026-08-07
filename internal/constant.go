@@ -17,6 +17,11 @@ var (
 	DebugMode = os.Getenv("DEBUG_MODE") == "true"
 	// 默认邮箱，运行时必须指定
 	DefaultEmail = getRequiredEnv("DEFAULT_EMAIL")
+	// GitHub OAuth 配置，设置后自动开放 GitHub 登录/注册
+	GHClientID = os.Getenv("GH_CLIENT_ID")
+	GHSecret   = os.Getenv("GH_SECRET")
+	// 会话加密密钥是否由环境变量显式提供
+	CipherKeySet = os.Getenv("CIPHER_KEY") != ""
 	// 阅读代理服务 URL 模板，使用 %s 作为文章链接的占位符
 	ReadabilityURLTemplate = os.Getenv("READABILITY_URL_TEMPLATE")
 )

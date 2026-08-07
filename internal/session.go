@@ -2,9 +2,12 @@ package internal
 
 import (
 	"bytes"
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/charmbracelet/log"
@@ -52,15 +55,30 @@ func setCookieSession(w http.ResponseWriter, name string, session Session) {
 		return
 	}
 
-	cookie := http.Cookie{
-		Name:   name,
-		Value:  encryptSess,
-		MaxAge: 24 * 60 * 60 * 7,
-		Path:   "/",
-	}
+	cookie := makeCookie(name, encryptSess, 24*60*60*7)
 
 	log.Infof("set cookie: %s, session: %+v\n", cookie.String(), session)
-	http.SetCookie(w, &cookie)
+	http.SetCookie(w, cookie)
+}
+
+func makeCookie(name, value string, maxAge int) *http.Cookie {
+	return &http.Cookie{
+		Name:     name,
+		Value:    value,
+		MaxAge:   maxAge,
+		Path:     "/",
+		HttpOnly: true,
+		Secure:   strings.HasPrefix(SiteURL, "https://"),
+		SameSite: http.SameSiteLaxMode,
+	}
+}
+
+func newOAuthState() (string, error) {
+	b := make([]byte, 16)
+	if _, err := rand.Read(b); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(b), nil
 }
 
 func getGithubAccessToken(code, rk, clientID, clientSecret string) (string, string, int) {
@@ -130,6 +148,11 @@ func getGithubData(accessToken string) (string, string) {
 	err = json.NewDecoder(resp.Body).Decode(&ghresp)
 	if err != nil {
 		return "", ""
+	}
+
+	// GitHub 用户未公开邮箱时，用 login@users.noreply.github.com 作为稳定身份
+	if ghresp.Email == "" && ghresp.Login != "" {
+		ghresp.Email = ghresp.Login + "@users.noreply.github.com"
 	}
 
 	log.Infof("github data: %+v", ghresp)

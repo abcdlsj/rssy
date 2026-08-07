@@ -19,6 +19,10 @@ var (
 	assetFs embed.FS
 
 	tmplFuncs = template.FuncMap{
+		"githubLoginEnabled": func() bool {
+			return checkAnyUserHasGitHubLogin()
+		},
+
 		"truncate": func(content string, length int) string {
 			if len(content) <= length {
 				return content
