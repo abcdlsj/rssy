@@ -15,6 +15,8 @@ add needed environment variables.
 - `DB`: `sqlite3` path or `postgres` url
 - `SITE_URL`: site url, used for oauth redirect
 - `DEFAULT_EMAIL`: admin email. The user matching this email is the admin and can manage site-wide settings.
+- `TRUSTED_AUTH_HEADER`: set `true` when running behind [Nexo](https://github.com/abcdlsj/nexo) or another
+  reverse proxy that authenticates users and passes the identity in the `X-Auth-User` request header.
 - `GH_CLIENT_ID`: github OAuth app client id
 - `GH_SECRET`: github OAuth app client secret
 - `CIPHER_KEY`: session encryption key (32 bytes). **Required when GitHub login is enabled**; keep it secret.
@@ -33,6 +35,21 @@ automatically opens registration: anyone with a GitHub account can log in at
 `/login` and gets their own feeds, categories, preferences and articles on first
 login. The admin (`DEFAULT_EMAIL`) can also enable/disable this in
 `/preference` under "Admin Settings - Registration (GitHub Login)".
+
+### Behind Nexo (recommended)
+
+When RSSy is proxied by [Nexo](https://github.com/abcdlsj/nexo), let Nexo handle
+the GitHub OAuth instead:
+
+- Configure the RSSy proxy route with `auth: true` in Nexo and list the users you
+  want to admit in Nexo's `auth.github.allowed_users`.
+- Start RSSy with `TRUSTED_AUTH_HEADER=true`. RSSy then trusts Nexo's
+  `X-Auth-User` header, creates an account on first visit for every allowed user,
+  and no longer needs `GH_CLIENT_ID`, `GH_SECRET` or `CIPHER_KEY`.
+- Set `DEFAULT_EMAIL` to `<your-github-username>@users.noreply.github.com` so you
+  keep admin rights after the header is mapped to an email identity.
+- Keep RSSy reachable only through Nexo (e.g. bind it to localhost/private
+  network), because the header is trusted as-is.
 
 Notes:
 

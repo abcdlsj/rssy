@@ -18,6 +18,35 @@ func ServerRouter() *gin.Engine {
 	r.SetHTMLTemplate(tmpl)
 
 	checklogin := func(c *gin.Context) {
+		// 信任上游反向代理（如 nexo）的认证头，跳过 RSSy 自身的 OAuth
+		if TrustedProxyAuth {
+			user := c.GetHeader("X-Auth-User")
+			if user == "" {
+				c.String(http.StatusUnauthorized, "missing X-Auth-User header")
+				c.Abort()
+				return
+			}
+
+			email := githubIdentityEmail(user)
+			if email == "" {
+				c.String(http.StatusUnauthorized, "invalid X-Auth-User header")
+				c.Abort()
+				return
+			}
+
+			// 首次访问自动注册：创建该用户的默认偏好
+			if _, err := getUserPreference(email); err != nil {
+				log.Errorf("Failed to initialize account for user %s: %v", email, err)
+				c.String(http.StatusInternalServerError, "Failed to initialize account")
+				c.Abort()
+				return
+			}
+
+			c.Set("email", email)
+			c.Next()
+			return
+		}
+
 		// 调试模式下直接使用默认邮箱 or 检查是否启用了 GitHub 登录
 		if DebugMode || !checkAnyUserHasGitHubLogin() {
 			c.Set("email", DefaultEmail)
@@ -361,6 +390,12 @@ func ServerRouter() *gin.Engine {
 	})
 
 	r.GET("/login", func(c *gin.Context) {
+		// 使用 nexo 等上游代理做认证时，让代理接管登录
+		if TrustedProxyAuth {
+			c.Redirect(http.StatusSeeOther, "/")
+			return
+		}
+
 		// 使用管理员用户的 GitHub 登录配置
 		adminPref, err := getAdminPreference()
 		if err != nil || !adminPref.EnableGitHubLogin {

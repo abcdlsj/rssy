@@ -17,6 +17,8 @@ var (
 	DebugMode = os.Getenv("DEBUG_MODE") == "true"
 	// 默认邮箱，运行时必须指定
 	DefaultEmail = getRequiredEnv("DEFAULT_EMAIL")
+	// 信任上游反向代理（如 nexo）设置的 X-Auth-User 请求头
+	TrustedProxyAuth = os.Getenv("TRUSTED_AUTH_HEADER") == "true"
 	// GitHub OAuth 配置，设置后自动开放 GitHub 登录/注册
 	GHClientID = os.Getenv("GH_CLIENT_ID")
 	GHSecret   = os.Getenv("GH_SECRET")

@@ -151,12 +151,23 @@ func getGithubData(accessToken string) (string, string) {
 	}
 
 	// GitHub 用户未公开邮箱时，用 login@users.noreply.github.com 作为稳定身份
-	if ghresp.Email == "" && ghresp.Login != "" {
-		ghresp.Email = ghresp.Login + "@users.noreply.github.com"
+	if ghresp.Email == "" {
+		ghresp.Email = githubIdentityEmail(ghresp.Login)
 	}
 
 	log.Infof("github data: %+v", ghresp)
 	return ghresp.Login, ghresp.Email
+}
+
+// githubIdentityEmail 把 GitHub 用户名转成 RSSy 内部使用的邮箱身份。
+func githubIdentityEmail(login string) string {
+	if login == "" {
+		return ""
+	}
+	if strings.Contains(login, "@") {
+		return login
+	}
+	return login + "@users.noreply.github.com"
 }
 
 func encryptSession(session Session) (string, error) {
