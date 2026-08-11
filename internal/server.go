@@ -608,6 +608,7 @@ func ServerRouter() *gin.Engine {
 		c.HTML(http.StatusOK, "ai-summary.html", gin.H{
 			"SiteURL":   SiteURL,
 			"Summaries": summaries,
+			"Today":     time.Now().In(TimeZone).Format("2006-01-02"),
 		})
 	})
 

@@ -128,8 +128,7 @@ func generateDailyAISummary(email string, date time.Time) error {
 		}
 	}
 
-	title := fmt.Sprintf("%s Summary - %s", summaryType, date.Format("2006-01-02"))
-	if err := createAISummary(email, date.Format("2006-01-02"), title, summary, categories, len(uniqueArticles)); err != nil {
+	if err := createAISummary(email, date.Format("2006-01-02"), summary, categories, len(uniqueArticles)); err != nil {
 		return fmt.Errorf("failed to save AI summary: %v", err)
 	}
 

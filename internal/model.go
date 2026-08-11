@@ -496,11 +496,11 @@ func getAISummariesForUser(email string, limit int) ([]AISummary, error) {
 	return summaries, nil
 }
 
-func createAISummary(email, date, title, summary, categories string, articleCount int) error {
+func createAISummary(email, date, summary, categories string, articleCount int) error {
 	aiSummary := AISummary{
 		Email:        email,
 		Date:         date,
-		Title:        title,
+		Title:        "",
 		Summary:      summary,
 		Categories:   categories,
 		ArticleCount: articleCount,
@@ -516,7 +516,9 @@ func createAISummary(email, date, title, summary, categories string, articleCoun
 		}
 	} else if err == nil {
 		aiSummary.UpdateAt = time.Now().Unix()
-		err = globalDB.Where("email = ? AND date = ?", email, date).Updates(&aiSummary).Error
+		err = globalDB.Where("email = ? AND date = ?", email, date).
+			Select("title", "summary", "categories", "article_count", "update_at").
+			Updates(&aiSummary).Error
 		if err != nil {
 			return fmt.Errorf("could not update AI summary: %v", err)
 		}
