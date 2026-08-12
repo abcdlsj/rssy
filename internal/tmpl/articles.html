@@ -28,6 +28,15 @@
     {{template "nav" .}}
     <h1>{{.Headline}}</h1>
 
+    {{if .DisplayHiddenToggle}}
+    <div class="form-container unread-toggle">
+      <form method="GET" action="/">
+        <label for="show_hidden">show-hidden</label>
+        <input type="checkbox" id="show_hidden" name="show_hidden" value="true" {{if .ShowHidden}}checked{{end}} onchange="this.form.submit()" />
+      </form>
+    </div>
+    {{end}}
+
     {{if .DisplayRefresh}}
     <div class="updatefeed-container">
       <button class="refresh-button" onclick="refreshFeed({{.FeedID}});">(+refresh)</button>
@@ -58,9 +67,10 @@
 
     {{$hideCreateBy := .HideCreateBy}}
     {{$displayCheckbox := .DisplayCheckbox}}
+    {{$showHidden := .ShowHidden}}
     {{$lastCategory := ""}}
     {{range $idx, $article := .Articles}}
-    {{if or $displayCheckbox (not (getFeedHideUnread $article.FeedID))}}
+    {{if or $displayCheckbox $showHidden (not (getFeedHideUnread $article.FeedID))}}
     {{$currentCategory := getTimeCategory $article.PublishAt}}
     {{if ne $currentCategory $lastCategory}}
     {{$lastCategory = $currentCategory}}

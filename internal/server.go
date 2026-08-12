@@ -47,9 +47,11 @@ func ServerRouter() *gin.Engine {
 
 		articles := getRecentlyArticles(email)
 		c.HTML(http.StatusOK, "articles.html", gin.H{
-			"Articles": articles,
-			"SiteURL":  SiteURL,
-			"Headline": "Unreads",
+			"Articles":            articles,
+			"SiteURL":             SiteURL,
+			"Headline":            "Unreads",
+			"ShowHidden":          c.Query("show_hidden") == "true",
+			"DisplayHiddenToggle": true,
 		})
 	})
 
