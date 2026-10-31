@@ -4,35 +4,42 @@
     {{template "head" .}}
   </head>
   <body>
-    <div class="wrap">
+    <div class="wrap wide">
     {{template "nav" .}}
     <h1>Stream</h1>
     <p class="sub">From <a href="https://buzzing.cc/" target="_blank" rel="noopener">buzzing.cc</a> · fetched {{.LastFetchTime | timeformat}}</p>
 
-    <div class="chips" role="group" aria-label="Source">
-      {{range $index, $group := .Groups}}
-      <button type="button" class="chip {{if eq $index 0}}active{{end}}" data-sg="{{$index}}">{{$group.Title}} <span class="n">{{len $group.Items}}</span></button>
-      {{end}}
-    </div>
-    <hr />
-
-    {{range $index, $group := .Groups}}
-    <div data-sgroup="{{$index}}" {{if ne $index 0}}hidden{{end}}>
-      {{range .Items}}
-      <div class="sitem">
-        <a href="{{.URL}}" target="_blank" rel="noopener" class="article-link">{{.Summary}}</a>
-        <div class="sinfo">
-          {{.Title}}
-          {{if .Author.Name}} · by <a href="{{.Author.URL}}" target="_blank" rel="noopener">{{.Author.Name}}</a>{{end}}
-          · {{.OriginalPublished | buzTimeformat}}
-          {{if gt (len .Links) 0}} · <a href="{{(index .Links 0).URL}}" target="_blank" rel="noopener">(+orig)</a>{{end}}
+    <div class="stream">
+      <div class="stream-side">
+        <h2 class="stream-h">Groups</h2>
+        <div class="chips stream-groups" role="group" aria-label="Source">
+          {{range $index, $group := .Groups}}
+          <button type="button" class="chip {{if eq $index 0}}active{{end}}" data-sg="{{$index}}">{{$group.Title}} <span class="n">{{len $group.Items}}</span></button>
+          {{end}}
         </div>
       </div>
-      {{end}}
+      <hr class="stream-hr" />
+
+      <div class="stream-main">
+        {{range $index, $group := .Groups}}
+        <div data-sgroup="{{$index}}" {{if ne $index 0}}hidden{{end}}>
+          {{range .Items}}
+          <div class="sitem">
+            <a href="{{.URL}}" target="_blank" rel="noopener" class="article-link">{{.Summary}}</a>
+            <div class="sinfo">
+              {{.Title}}
+              {{if .Author.Name}} · by <a href="{{.Author.URL}}" target="_blank" rel="noopener">{{.Author.Name}}</a>{{end}}
+              · {{.OriginalPublished | buzTimeformat}}
+              {{if gt (len .Links) 0}} · <a href="{{(index .Links 0).URL}}" target="_blank" rel="noopener">(+orig)</a>{{end}}
+            </div>
+          </div>
+          {{end}}
+        </div>
+        {{else}}
+        <p class="empty">Nothing here yet. The stream refreshes every 12 hours.</p>
+        {{end}}
+      </div>
     </div>
-    {{else}}
-    <p class="empty">Nothing here yet. The stream refreshes every 12 hours.</p>
-    {{end}}
     </div>
   </body>
 </html>

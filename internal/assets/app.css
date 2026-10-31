@@ -328,3 +328,27 @@ a.chip:hover, button.chip:hover { border-color: var(--link); color: var(--link);
 .xitem .name { font-size: 1.02em; }
 .xitem .path a { color: var(--muted); }
 .xitem .path a:hover { color: var(--link); }
+
+/* ---- stream: two columns on desktop, chips on phones ---- */
+.stream-h { display: none; }
+@media (min-width: 721px) and (hover: hover) {
+  .wrap.wide { max-width: 1000px; }
+  .stream { display: grid; grid-template-columns: 210px minmax(0, 1fr); margin-top: 1rem; }
+  .stream-hr { display: none; }
+  .stream-side {
+    position: sticky; top: calc(env(safe-area-inset-top, 0px) + 1rem); align-self: start;
+    max-height: calc(100vh - 2rem); overflow-y: auto; padding-right: 1.25rem; border-right: 1px solid var(--line);
+  }
+  .stream-h { display: block; color: var(--muted); font-size: 0.75em; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; margin: 0 0 0.5rem 0.6rem; }
+  .stream-groups { flex-direction: column; overflow: visible; gap: 2px; margin: 0; padding: 0; }
+  .stream-groups .chip {
+    width: 100%; justify-content: space-between; border: 0; border-radius: 6px;
+    padding: 0.35rem 0.6rem; font-size: 0.95em; background: none; color: var(--fg); white-space: normal; text-align: left;
+  }
+  .stream-groups .chip:hover { background: var(--soft); color: var(--fg); }
+  .stream-groups .chip.active { background: var(--soft); color: var(--strong); font-weight: 700; }
+  .stream-groups .chip.active .n { color: var(--muted); opacity: 1; }
+  .stream-main { padding-left: 1.75rem; min-width: 0; }
+  .stream-main .sitem:first-child { padding-top: 0; }
+  .stream-main .sitem { padding: 0.5rem 0; }
+}
