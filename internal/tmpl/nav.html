@@ -1,10 +1,22 @@
 {{define "nav"}}
 <nav class="navbar" aria-label="Primary navigation">
-  <a href="/">Home</a>
-  <a href="/feed">Feeds</a>
-  <a href="/stream">Stream</a>
-  <a href="/favorites">Favorites</a>
-  <a href="/preference">Preferences</a>
-  <a href="/ai-summary">Summary</a>
+  <a href="/" data-nav="home">Home</a>
+  <a href="/feed" data-nav="feed">Feeds</a>
+  <a href="/explore" data-nav="explore">Explore</a>
+  <a href="/stream" data-nav="stream">Stream</a>
+  <a href="/favorites" data-nav="favorites">Favorites</a>
+  <a href="/ai-summary" data-nav="summary">Summary</a>
+  <a href="/preference" data-nav="preference">Preferences</a>
 </nav>
+<script>
+  (function () {
+    var path = window.location.pathname;
+    document.querySelectorAll(".navbar a").forEach(function (link) {
+      var href = link.getAttribute("href");
+      var active = href === "/" ? path === "/" || path.indexOf("/article/") === 0 || path.indexOf("/category/") === 0 : path.indexOf(href) === 0;
+      link.classList.toggle("active", active);
+      if (active) link.setAttribute("aria-current", "page");
+    });
+  })();
+</script>
 {{end}}

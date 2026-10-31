@@ -18,6 +18,7 @@ add needed environment variables.
 - `GH_SECRET`: github client secret
 - `PORT`: server port, default `8080`
 - `PG`: use `postgres` or not, default use `sqlite3`
+- `RSSHUB_URL`: self-hosted RSSHub instance used by the Explore page, default `https://rsshub.app`
 
 then run
 ```shell
@@ -46,6 +47,15 @@ remove `PG=true` environment variable.
 ```shell
 docker run -d --restart unless-stopped -e DB="rssy.db" -e SITE_URL="https://example.com" -e GH_CLIENT_ID="xxxxx" -e GH_SECRET="xxxxx" -e PORT="8080" -p 19200:8080 --mount type=bind,source=rssy.db,target=/rssy.db <imagename>
 ```
+
+## Explore
+
+`/explore` 从 `RSSHUB_URL` 拉取 RSSHub 的路由注册表（`/api/namespace`），按分类/关键词浏览，点 `+` 即订阅。
+路由表会在启动时从数据库缓存恢复，12 小时后自动刷新，也可在页面底部手动重新拉取。
+
+## PWA
+
+站点提供 `manifest.webmanifest` 与 iOS 图标/状态栏配置，Safari 里「添加到主屏幕」后以 standalone 方式运行。
 
 ## PNGs
 

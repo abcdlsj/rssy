@@ -19,6 +19,9 @@ var (
 	DefaultEmail = getRequiredEnv("DEFAULT_EMAIL")
 	// 阅读代理服务 URL 模板，使用 %s 作为文章链接的占位符
 	ReadabilityURLTemplate = os.Getenv("READABILITY_URL_TEMPLATE")
+
+	// RSSHub 实例地址，用于 Explore 页面浏览与一键订阅
+	RSSHubURL = orenv("RSSHUB_URL", "https://rsshub.app")
 )
 
 func getRequiredEnv(key string) string {

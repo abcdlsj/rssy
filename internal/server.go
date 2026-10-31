@@ -4,7 +4,9 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/charmbracelet/log"
@@ -16,6 +18,10 @@ func ServerRouter() *gin.Engine {
 
 	r.SetFuncMap(tmplFuncs)
 	r.SetHTMLTemplate(tmpl)
+
+	// 从本地缓存恢复 RSSHub 注册表，并在后台按需刷新
+	loadExploreCache()
+	ensureExploreData()
 
 	checklogin := func(c *gin.Context) {
 		// 调试模式下直接使用默认邮箱 or 检查是否启用了 GitHub 登录
@@ -299,6 +305,7 @@ func ServerRouter() *gin.Engine {
 			return
 		}
 		c.HTML(http.StatusOK, "content.html", gin.H{
+			"SiteURL":   SiteURL,
 			"Title":     article.Title,
 			"PublishAt": article.PublishAt,
 			"Content":   article.Content,
@@ -362,6 +369,45 @@ func ServerRouter() *gin.Engine {
 		c.Data(http.StatusOK, "image/x-icon", favicon)
 	})
 
+	serveIcon := func(name, contentType string) gin.HandlerFunc {
+		return func(c *gin.Context) {
+			data, err := assetFs.ReadFile("assets/icons/" + name)
+			if err != nil {
+				c.Status(http.StatusNotFound)
+				return
+			}
+			c.Header("Cache-Control", "public, max-age=604800")
+			c.Data(http.StatusOK, contentType, data)
+		}
+	}
+	// PWA 图标与 Safari 添加到主屏时使用的图标
+	r.GET("/icon-192.png", serveIcon("icon-192.png", "image/png"))
+	r.GET("/icon-512.png", serveIcon("icon-512.png", "image/png"))
+	r.GET("/icon-maskable-512.png", serveIcon("icon-maskable-512.png", "image/png"))
+	r.GET("/apple-touch-icon.png", serveIcon("apple-touch-icon.png", "image/png"))
+	r.GET("/favicon-32x32.png", serveIcon("favicon-32.png", "image/png"))
+
+	r.GET("/manifest.webmanifest", func(c *gin.Context) {
+		c.Header("Content-Type", "application/manifest+json")
+		c.Header("Cache-Control", "public, max-age=3600")
+		c.JSON(http.StatusOK, gin.H{
+			"name":             "RSSy",
+			"short_name":       "RSSy",
+			"description":      "Personal RSS reader",
+			"start_url":        "/",
+			"scope":            "/",
+			"display":          "standalone",
+			"orientation":      "portrait",
+			"background_color": "#ffffff",
+			"theme_color":      "#ffffff",
+			"icons": []gin.H{
+				{"src": "/icon-192.png", "sizes": "192x192", "type": "image/png"},
+				{"src": "/icon-512.png", "sizes": "512x512", "type": "image/png"},
+				{"src": "/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable"},
+			},
+		})
+	})
+
 	r.GET("/login", func(c *gin.Context) {
 		// 使用管理员用户的 GitHub 登录配置
 		adminPref, err := getAdminPreference()
@@ -423,6 +469,109 @@ func ServerRouter() *gin.Engine {
 			"Groups":        buzzingFeed.Groups,
 			"LastFetchTime": globalBuzzingFeedUpdatedAt.Unix(),
 		})
+	})
+
+	r.GET("/explore", checklogin, func(c *gin.Context) {
+		email := c.GetString("email")
+		if email == "" {
+			c.String(http.StatusBadRequest, "invalid request")
+			return
+		}
+
+		ensureExploreData()
+		data, loading, lastErr := getExploreSnapshot()
+
+		query := strings.TrimSpace(c.Query("q"))
+		category := strings.TrimSpace(c.Query("category"))
+		if category == "" {
+			category = "featured"
+		}
+		page, _ := strconv.Atoi(c.Query("page"))
+
+		pageData := ExplorePage{
+			SiteURL:    SiteURL,
+			Category:   category,
+			Query:      query,
+			Page:       page,
+			Loading:    loading,
+			RSSHubURL:  exploreBaseURL(),
+			PageSize:   explorePageSize,
+			Categories: []ExploreCategory{},
+			Items:      []ExploreItem{},
+		}
+		pageData.Back = exploreURL(query, category, page)
+
+		if c.Query("added") != "" {
+			pageData.Notice = "已添加订阅：" + c.Query("added")
+		}
+		if message := c.Query("error"); message != "" {
+			pageData.ErrorMessage = message
+		}
+
+		if data == nil {
+			if lastErr != "" {
+				pageData.ErrorMessage = "RSSHub 数据获取失败：" + lastErr
+			}
+			c.HTML(http.StatusOK, "explore.html", pageData)
+			return
+		}
+
+		subscribed := getSubscribedFeedURLs(email)
+		items := filterExploreItems(data.Items, query, category)
+		for i := range items {
+			if _, ok := subscribed[normalizeFeedURL(items[i].Link)]; ok {
+				items[i].Added = true
+			}
+		}
+
+		paged, currentPage, totalPages := paginateExplore(items, page)
+		pageData.Items = paged
+		pageData.Total = len(items)
+		pageData.Page = currentPage
+		pageData.TotalPages = totalPages
+		pageData.HasPrev = currentPage > 1
+		pageData.HasNext = currentPage < totalPages
+		pageData.PrevURL = exploreURL(query, category, currentPage-1)
+		pageData.NextURL = exploreURL(query, category, currentPage+1)
+		pageData.RouteCount = data.RouteCount
+		pageData.UpdatedAt = data.UpdatedAt
+		pageData.Categories = data.Categories
+
+		c.HTML(http.StatusOK, "explore.html", pageData)
+	})
+
+	r.POST("/explore/add", checklogin, func(c *gin.Context) {
+		email := c.GetString("email")
+		feedURL := strings.TrimSpace(c.PostForm("url"))
+		back := c.PostForm("back")
+
+		if email == "" {
+			c.String(http.StatusBadRequest, "invalid request")
+			return
+		}
+		if !strings.HasPrefix(back, "/explore") {
+			back = "/explore"
+		}
+
+		if feedURL == "" || !strings.HasPrefix(feedURL, exploreBaseURL()) {
+			c.Redirect(http.StatusSeeOther, back+exploreJoin(back)+"error="+url.QueryEscape("无效的 RSSHub 地址"))
+			return
+		}
+
+		if _, err := addFeedAndCreateArticles(feedURL, email); err != nil {
+			log.Errorf("add explore feed %s: %v", feedURL, err)
+			message := "订阅失败，RSSHub 可能暂时无法获取该路由，稍后重试：" + err.Error()
+			c.Redirect(http.StatusSeeOther, back+exploreJoin(back)+"error="+url.QueryEscape(message))
+			return
+		}
+
+		name := strings.TrimSpace(c.PostForm("name"))
+		c.Redirect(http.StatusSeeOther, back+exploreJoin(back)+"added="+url.QueryEscape(name))
+	})
+
+	r.POST("/explore/refresh", checklogin, func(c *gin.Context) {
+		forceRefreshExplore()
+		c.Redirect(http.StatusSeeOther, "/explore")
 	})
 
 	r.GET("/preference", checklogin, func(c *gin.Context) {

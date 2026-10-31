@@ -42,7 +42,7 @@ func init() {
 	}
 
 	if autoMigrate {
-		err = db.AutoMigrate(&Article{}, &Feed{}, &UserPreference{}, &AISummary{}, &Category{})
+		err = db.AutoMigrate(&Article{}, &Feed{}, &UserPreference{}, &AISummary{}, &Category{}, &ExploreCache{})
 		if err != nil {
 			log.Fatal(err)
 		}

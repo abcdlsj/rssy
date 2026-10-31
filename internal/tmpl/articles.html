@@ -91,20 +91,22 @@
       {{if getFeedCategory $article.FeedID}}
       <a class="article-category" href="/category/{{getFeedCategory $article.FeedID}}">[{{getFeedCategory $article.FeedID}}]</a>
       {{end}}
-      <button
-        type="button"
-        class="article-action-favorite"
-        onclick="toggleStar('{{$article.Uid}}')"
-        title="{{if $article.Favorite}}Unfavorite{{else}}Favorite{{end}}"
-      >{{if $article.Favorite}}(-f){{else}}(+f){{end}}</button>
-      {{if displayContentRead $article.Content}}
-      <a href="/article/{{$article.Uid}}/read" target="_blank" class="article-action-read">(+r)</a>
-      {{end}}
-      {{if enableReadabilityButton $article.FeedID}}
-      <a href="{{buildReadabilityURL $article.Link}}" target="_blank" class="article-action-read">(+r5)</a>
-      {{end}}
-      <a href="{{$article.Link}}" target="_blank" class="article-action-source">(+o)</a>
-      <a href="/article/{{$article.Uid}}/delete" class="article-action-delete">(-d)</a>
+      <span class="article-actions">
+        <button
+          type="button"
+          class="article-action-favorite"
+          onclick="toggleStar('{{$article.Uid}}')"
+          title="{{if $article.Favorite}}Unfavorite{{else}}Favorite{{end}}"
+        >{{if $article.Favorite}}(-f){{else}}(+f){{end}}</button>
+        {{if displayContentRead $article.Content}}
+        <a href="/article/{{$article.Uid}}/read" target="_blank" class="article-action-read">(+r)</a>
+        {{end}}
+        {{if enableReadabilityButton $article.FeedID}}
+        <a href="{{buildReadabilityURL $article.Link}}" target="_blank" class="article-action-read">(+r5)</a>
+        {{end}}
+        <a href="{{$article.Link}}" target="_blank" class="article-action-source">(+o)</a>
+        <a href="/article/{{$article.Uid}}/delete" class="article-action-delete">(-d)</a>
+      </span>
     </div>
     {{end}}
     {{end}}

@@ -1,7 +1,17 @@
 {{define "head"}}
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff" />
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#202b38" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-title" content="RSSy" />
+<meta name="apple-mobile-web-app-status-bar-style" content="default" />
+<meta name="format-detection" content="telephone=no" />
 <title>RSSy</title>
+<link rel="manifest" href="/manifest.webmanifest" />
+<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
 <link
   rel="stylesheet"
   href="https://cdn.jsdelivr.net/npm/water.css@2/out/water.css"
@@ -39,15 +49,36 @@
     font-size: 0.9em;
   }
   .navbar {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    display: flex;
+    align-items: center;
+    gap: 2px;
     overflow-x: auto;
-    margin-bottom: 20px;
+    margin: 0 0 16px;
+    padding: 4px 0;
     white-space: nowrap;
+    background: var(--background-body, #fff);
+    border-bottom: 1px solid var(--border, #dbdbdb);
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .navbar::-webkit-scrollbar {
+    display: none;
   }
   .navbar a {
-    display: inline-block;
-    text-align: left;
-    padding: 10px 15px 10px 0;
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    min-height: 40px;
+    padding: 0 12px;
+    border-radius: 8px;
     text-decoration: none;
+  }
+  .navbar a.active {
+    background: var(--button-base, #efefef);
+    font-weight: 600;
   }
   .feed-item {
     display: flex;
@@ -311,34 +342,253 @@
       color: #a0aec0;
     }
   }
+  /* ===== Mobile / PWA app shell ===== */
+  html {
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
+  body {
+    padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 20px);
+    overscroll-behavior-y: contain;
+    -webkit-tap-highlight-color: transparent;
+  }
+  a,
+  button,
+  input[type="submit"],
+  select {
+    touch-action: manipulation;
+  }
+  img,
+  video,
+  iframe {
+    max-width: 100%;
+  }
+  .article-body img,
+  .article-body video,
+  .article-body iframe {
+    height: auto;
+  }
+  .article-body pre,
+  .article-body table {
+    display: block;
+    max-width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .article-actions {
+    display: inline-flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 2px 8px;
+  }
+  .article-actions a,
+  .article-actions button {
+    min-height: 28px;
+    display: inline-flex;
+    align-items: center;
+  }
+  @media (display-mode: standalone) {
+    body {
+      padding-left: env(safe-area-inset-left, 0px);
+      padding-right: env(safe-area-inset-right, 0px);
+    }
+  }
   @media (max-width: 640px) {
+    body {
+      padding: 8px 12px calc(env(safe-area-inset-bottom, 0px) + 24px);
+      font-size: 16px;
+    }
+    h1 {
+      font-size: 1.5rem;
+      margin: 8px 0 12px;
+    }
+    h2 {
+      font-size: 1.15rem;
+    }
+    hr {
+      margin: 12px 0;
+    }
+    .navbar {
+      margin: 0 -12px 12px;
+      padding: 4px 8px;
+      gap: 0;
+    }
+    .navbar a {
+      min-height: 44px;
+      padding: 0 10px;
+      font-size: 0.95em;
+    }
+    .form-container,
+    .updatefeed-container {
+      align-items: stretch;
+    }
+    .form-container input[type="text"],
+    .form-container input[type="url"],
+    .form-container input[type="search"],
+    .form-container select,
+    input[type="text"],
+    input[type="url"],
+    input[type="search"],
+    input[type="email"],
+    input[type="password"],
+    textarea {
+      width: 100%;
+      max-width: 100%;
+      margin: 0 0 6px;
+      font-size: 16px;
+      min-height: 40px;
+    }
+    input[type="submit"],
+    button[type="submit"] {
+      min-height: 40px;
+    }
+    .unread-toggle,
+    .updatefeed-container label {
+      font-size: 0.95em;
+    }
+    .article-item {
+      margin: 0;
+      padding: 10px 0;
+      border-bottom: 1px solid var(--border, #e5e5e5);
+      line-height: 1.45;
+    }
+    .article-link {
+      display: inline-block;
+      padding: 2px 0;
+      font-size: 1rem;
+      overflow-wrap: anywhere;
+    }
+    .article-info,
+    .article-feed,
+    .article-category {
+      font-size: 0.85em;
+    }
+    .article-actions {
+      display: flex;
+      gap: 4px;
+      margin-top: 4px;
+    }
+    .article-actions a,
+    .article-actions button {
+      min-height: 34px;
+      min-width: 34px;
+      justify-content: center;
+      border: 1px solid var(--border, #e5e5e5);
+      border-radius: 8px;
+      font-size: 0.85em;
+      text-decoration: none;
+    }
+    .timeline-divider {
+      margin: 14px 0 6px;
+    }
+    .article-content {
+      padding: 0;
+      max-width: 100%;
+    }
+    .article-title {
+      font-size: 1.35em;
+      line-height: 1.35;
+    }
+    .article-body {
+      font-size: 1rem;
+      line-height: 1.65;
+      overflow-wrap: break-word;
+    }
+    .article-body h1,
+    .article-body h2 {
+      font-size: 1.2em;
+    }
+    .category-tabs {
+      flex-wrap: nowrap;
+      overflow-x: auto;
+      padding-bottom: 6px;
+      scrollbar-width: none;
+    }
+    .category-tabs::-webkit-scrollbar {
+      display: none;
+    }
+    .category-tab {
+      flex: 0 0 auto;
+      min-height: 36px;
+      padding: 6px 10px;
+    }
     .stream-container {
       display: block;
+      margin-top: 12px;
     }
     .sidebar {
+      display: flex;
+      gap: 6px;
       width: auto;
-      padding: 0 0 10px;
+      overflow-x: auto;
+      padding: 0 0 8px;
       border-right: 0;
       border-bottom: 1px solid #ccc;
+      scrollbar-width: none;
+    }
+    .sidebar::-webkit-scrollbar {
+      display: none;
+    }
+    .sidebar h2 {
+      display: none;
+    }
+    .group-header {
+      flex: 0 0 auto;
+      min-height: 36px;
+      display: inline-flex;
+      align-items: center;
+      margin: 0;
+      padding: 0 12px;
+      border: 1px solid var(--border, #e5e5e5);
+      border-radius: 16px;
+      font-size: 0.85em;
     }
     .stream-group-main-content {
-      padding: 20px 0 0;
+      padding: 14px 0 0;
+    }
+    .stream-item {
+      margin-bottom: 14px;
+    }
+    .stream-info {
+      display: block;
+      margin-left: 0;
     }
     .feed-item {
       display: block;
-      margin-bottom: 10px;
+      padding: 10px 0;
+      margin-bottom: 0;
+      border-bottom: 1px solid var(--border, #e5e5e5);
     }
     .feed-url {
       display: block;
+      margin-top: 2px;
       white-space: normal;
       overflow-wrap: anywhere;
     }
     .feed-actions {
       display: flex;
-      margin: 4px 0 0;
+      align-items: center;
+      gap: 8px;
+      margin: 6px 0 0;
     }
-    .form-container {
-      align-items: flex-start;
+    .feed-actions select {
+      flex: 1;
+      min-width: 0;
+      min-height: 38px;
+      font-size: 16px;
+    }
+    .feed-actions .delete-button {
+      min-width: 38px;
+      min-height: 38px;
+      border: 1px solid var(--border, #e5e5e5);
+      border-radius: 8px;
+    }
+    .import-export-container a,
+    .import-export-container button {
+      min-height: 36px;
+    }
+    .summary-day-header {
+      min-height: 40px;
     }
   }
 </style>
