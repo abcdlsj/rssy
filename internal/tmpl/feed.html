@@ -2,112 +2,72 @@
 <html lang="en">
   <head>
     {{template "head" .}}
-    <script>
-      function getFile() {
-        document.getElementById("upfile").click();
-      }
-
-      function sub() {
-        document.fileForm.submit();
-      }
-
-      function switchCategory(category, updateURL = true) {
-        let visibleCount = 0;
-
-        document.querySelectorAll(".category-tab").forEach((tab) => {
-          tab.classList.toggle("active", tab.dataset.category === category);
-        });
-
-        document.querySelectorAll(".feed-item").forEach((feed) => {
-          const feedCategory = feed.dataset.category || "";
-          const visible = category === "all" ||
-            (category === "inbox" ? feedCategory === "" : feedCategory === category);
-          feed.hidden = !visible;
-          if (visible) visibleCount++;
-        });
-
-        const empty = document.getElementById("feeds-empty");
-        if (empty) empty.hidden = visibleCount !== 0;
-
-        if (updateURL) {
-          const url = new URL(window.location);
-          if (category === "inbox") {
-            url.searchParams.delete("category");
-          } else {
-            url.searchParams.set("category", category);
-          }
-          window.history.replaceState({}, "", url);
-        }
-      }
-
-      document.addEventListener("DOMContentLoaded", function () {
-        const tabs = document.querySelector(".category-tabs");
-        const initialCategory = tabs ? tabs.dataset.currentCategory : "inbox";
-
-        document.querySelectorAll(".category-tab").forEach((tab) => {
-          tab.addEventListener("click", function () {
-            switchCategory(this.dataset.category);
-          });
-        });
-
-        switchCategory(initialCategory, false);
-      });
-    </script>
   </head>
   <body>
+    <div class="wrap">
     {{template "nav" .}}
-    <h1>Feeds</h1>
+    <h1>Feeds<small>{{len .AllFeeds}}</small></h1>
 
-    <div class="import-export-container">
-      <form action="/feed/import" method="POST" enctype="multipart/form-data" name="fileForm">
-        <button type="button" onclick="getFile()" class="import-button">(+import)</button>
-        <input id="upfile" type="file" value="opml" name="opml" onchange="sub()" />
+    <div class="addrow">
+      <form method="POST" action="/feed/add" id="addForm">
+        <input class="input grow" type="url" id="url" name="url" required placeholder="Paste a feed URL, e.g. https://example.com/feed.xml" aria-label="Feed URL" />
+        <button class="btn primary" type="submit">Add feed</button>
       </form>
-      <form method="GET" action="/feed/export">
-        <button type="submit" class="export-button">(+export)</button>
+      <form action="/feed/import" method="POST" enctype="multipart/form-data">
+        <input id="upfile" type="file" name="opml" accept=".opml,.xml,text/xml,application/xml" hidden />
+        <button class="btn" type="button" data-act="import">Import OPML</button>
       </form>
+      <a class="btn" href="/feed/export">Export OPML</a>
     </div>
-
-    <form method="POST" action="/feed/add" class="form-container">
-      <label for="url">Enter Feed URL:</label>
-      <input type="url" id="url" name="url" required />
-      <input type="submit" value="Add" />
-    </form>
     <hr />
 
-    <div class="category-tabs" data-current-category="{{if eq .CurrentCategory ""}}inbox{{else}}{{.CurrentCategory}}{{end}}">
-      <button type="button" class="category-tab" data-category="inbox">Inbox</button>
-      <button type="button" class="category-tab" data-category="all">All</button>
+    {{$current := .CurrentCategory}}
+    <div class="chips" role="group" aria-label="Category" data-feed-chips data-current="{{if $current}}{{$current}}{{else}}all{{end}}">
+      <button type="button" class="chip" data-fcat="all">All <span class="n">{{len .AllFeeds}}</span></button>
+      <button type="button" class="chip" data-fcat="inbox">Inbox <span class="n">{{len .InboxFeeds}}</span></button>
       {{range $cat := .Categories}}
-      <button type="button" class="category-tab" data-category="{{$cat.Name}}">
-        <span class="tab-color" style="background-color: {{$cat.Color}};"></span>
-        {{$cat.Name}}{{if not $cat.Email}}<span class="system-marker">*</span>{{end}}
-      </button>
+      <button type="button" class="chip" data-fcat="{{$cat.Name}}"><span class="dot" style="background-color: {{$cat.Color}}"></span>{{$cat.Name}}{{if not $cat.Email}}*{{end}} <span class="n">{{len (index $.CategoryFeeds $cat.Name)}}</span></button>
       {{end}}
     </div>
 
-    <div class="feed-list">
+    <div class="feed-list" style="margin-top: 0.6rem">
       {{range $feed := .AllFeeds}}
+      {{$n := index $.UnreadCounts $feed.ID}}
       <div class="feed-item" data-category="{{$feed.Categories}}">
-        <a href="/feed/{{$feed.ID}}" class="feed-title">{{$feed.Title}}</a>
-        <a href="{{$feed.URL}}" target="_blank" class="feed-url">{{$feed.URL}}</a>
-        <div class="feed-actions">
-          <form method="POST" action="/feed/{{$feed.ID}}/category">
-            <select name="category" class="category-select" onchange="this.form.submit()" aria-label="Category for {{$feed.Title}}">
-              <option value="">Uncategorized</option>
+        <div class="fline">
+          <a href="/feed/{{$feed.ID}}">{{$feed.Title}}</a>
+          {{if $n}}<span class="fn">({{$n}} unread)</span>{{end}}
+          <span class="fn is-hidden" {{if not $feed.HideUnread}}hidden{{end}}>[hidden]</span>
+          <a href="{{$feed.URL}}" target="_blank" rel="noopener" class="feed-url">{{$feed.URL}}</a>
+          <span class="article-actions">
+            <button type="button" data-refresh="{{$feed.ID}}">(refresh)</button>
+            <button type="button" data-toggle-panel="panel-{{$feed.ID}}" hidden>(+edit)</button>
+            <form method="POST" action="/feed/delete/{{$feed.ID}}" class="inline">
+              <button type="submit" data-confirm="(remove?)" title="Unsubscribe">(-)</button>
+            </form>
+          </span>
+        </div>
+        <form method="POST" action="/feed/{{$feed.ID}}/update" class="panel" id="panel-{{$feed.ID}}" data-feed-panel="{{$feed.ID}}">
+          <label class="check" for="hide-{{$feed.ID}}"><input type="checkbox" id="hide-{{$feed.ID}}" name="hide_unread" value="true" {{if $feed.HideUnread}}checked{{end}} />Hide from Unreads</label>
+          <label class="check" for="r5-{{$feed.ID}}"><input type="checkbox" id="r5-{{$feed.ID}}" name="enable_readability" value="true" {{if $feed.EnableReadability}}checked{{end}} />Readability</label>
+          <label class="check" for="hl-{{$feed.ID}}"><input type="checkbox" id="hl-{{$feed.ID}}" name="highlight" value="true" {{if $feed.Highlight}}checked{{end}} />Highlight</label>
+          <label class="labeled" for="cat-{{$feed.ID}}">Category
+            <select class="select" id="cat-{{$feed.ID}}" name="category">
+              <option value="">None</option>
               {{range $cat := $.Categories}}
               <option value="{{$cat.Name}}" {{if eq $feed.Categories $cat.Name}}selected{{end}}>{{$cat.Name}}</option>
               {{end}}
             </select>
-          </form>
-          <form method="POST" action="/feed/delete/{{$feed.ID}}">
-            <button type="submit" class="delete-button" title="Delete feed">(-)</button>
-          </form>
-        </div>
+          </label>
+          <input type="hidden" name="set_category" value="true" />
+          <button type="submit" class="btn sm panel-save">Save</button>
+          <span class="meta">Fetched {{timeformat $feed.LastFetchedAt}}</span>
+        </form>
       </div>
       {{end}}
     </div>
 
-    <p id="feeds-empty" class="empty-state" hidden>No feeds in this category.</p>
+    <p id="feeds-empty" class="empty" {{if .AllFeeds}}hidden{{end}}>{{if .AllFeeds}}No feeds in this category.{{else}}No feeds yet. Paste a feed URL above, or find one in <a href="/explore">Explore</a>.{{end}}</p>
+    </div>
   </body>
 </html>

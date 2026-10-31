@@ -2,277 +2,41 @@
 <html lang="en">
   <head>
     {{template "head" .}}
-    <style>
-      .summaries-container {
-        width: 100%;
-        margin: 0;
-      }
-      .summaries-container > .summary-item,
-      .summaries-container > .summary-item[open] {
-        display: block;
-        width: 100%;
-        margin: 0;
-        padding: 0;
-        border: 0;
-        border-radius: 0;
-        background: none;
-        background-color: transparent;
-        overflow: visible;
-        overflow-wrap: anywhere;
-      }
-      .summary-item + .summary-item {
-        margin-top: 8px;
-      }
-      .summary-item > .summary-day-header,
-      .summary-item[open] > .summary-day-header {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        margin: 0;
-        padding: 6px 0;
-        background: none;
-        background-color: transparent;
-        color: var(--text-main);
-        cursor: pointer;
-        list-style: none;
-      }
-      .summary-day-header::-webkit-details-marker {
-        display: none;
-      }
-      .summary-day-header::after {
-        content: "+";
-        flex: 0 0 1em;
-        color: var(--links);
-        font-weight: bold;
-        text-align: center;
-      }
-      .summary-item[open] > .summary-day-header::after {
-        content: "-";
-      }
-      .summary-item[open] > .summary-day-header {
-        margin-bottom: 0;
-        background: transparent;
-      }
-      .summary-day-header:hover,
-      .summary-day-header:focus {
-        text-decoration: none;
-      }
-      .summary-day-header:hover .summary-date {
-        color: var(--links);
-      }
-      .summary-day-heading {
-        display: flex;
-        flex: 1;
-        align-items: baseline;
-        justify-content: space-between;
-        gap: 12px;
-      }
-      .summary-meta {
-        display: flex;
-        flex-wrap: wrap;
-        align-items: center;
-        justify-content: flex-end;
-        gap: 8px;
-        color: var(--text-muted);
-        font-size: 0.9em;
-      }
-      .summary-date {
-        color: var(--text-bright);
-        font-size: 1.05em;
-        font-weight: bold;
-      }
-      .summary-today {
-        color: var(--text-muted);
-        font-size: 0.78em;
-        font-weight: normal;
-      }
-      .summary-body {
-        padding: 14px 0 24px;
-        background: transparent;
-      }
-      .summary-content {
-        line-height: 1.68;
-      }
-      .summary-content h1,
-      .summary-content h2,
-      .summary-content h3,
-      .summary-content h4,
-      .summary-content h5,
-      .summary-content h6 {
-        margin-top: 20px;
-        margin-bottom: 10px;
-        color: var(--text-bright);
-      }
-      .summary-content h1 {
-        font-size: 1.3em;
-      }
-      .summary-content h2 {
-        font-size: 1.15em;
-      }
-      .summary-content h3 {
-        font-size: 1.1em;
-      }
-      .summary-content p {
-        margin-bottom: 12px;
-      }
-      .summary-content ul,
-      .summary-content ol {
-        margin-bottom: 15px;
-        padding-left: 22px;
-      }
-      .summary-content li {
-        margin-bottom: 5px;
-      }
-      .summary-content blockquote {
-        margin: 15px 0;
-        padding: 10px 16px;
-        background: transparent;
-        border-left: 4px solid var(--border);
-      }
-      .summary-content code {
-        padding: 2px 4px;
-        font-size: 0.9em;
-      }
-      .summary-content pre {
-        max-width: 100%;
-        margin-bottom: 15px;
-        padding: 15px;
-        overflow-x: auto;
-      }
-      .summary-content pre code {
-        padding: 0;
-        background: none;
-      }
-      .summary-table-wrap,
-      .summary-content table {
-        max-width: 100%;
-        overflow-x: auto;
-      }
-      .summary-content table {
-        display: block;
-        width: max-content;
-        min-width: 100%;
-        border-collapse: collapse;
-      }
-      .summary-content th,
-      .summary-content td {
-        padding: 8px 12px;
-        border: 1px solid var(--border);
-        text-align: left;
-      }
-      .summary-content th {
-        background: transparent;
-      }
-      .summary-details,
-      .summary-details[open] {
-        margin: 14px 0 0;
-        padding: 0;
-        border: 0;
-        border-radius: 0;
-        background: transparent;
-        overflow: visible;
-        color: var(--text-muted);
-        font-size: 0.95em;
-      }
-      .summary-details > summary,
-      .summary-details[open] > summary {
-        margin: 0;
-        padding: 0;
-        background: transparent;
-        color: var(--links);
-        cursor: pointer;
-      }
-      .summary-details[open] > summary {
-        margin-bottom: 12px;
-      }
-      .summary-details .close-label,
-      .summary-details[open] .open-label {
-        display: none;
-      }
-      .summary-details[open] .close-label {
-        display: inline;
-      }
-      .summary-coverage {
-        margin-top: 16px;
-        padding-top: 10px;
-        border-top: 1px dotted var(--border);
-      }
-      .summary-coverage .summary-content {
-        margin-top: 8px;
-      }
-      .no-summaries {
-        padding: 40px 10px;
-        color: var(--text-muted);
-        text-align: center;
-      }
-      .message {
-        max-width: 800px;
-        margin: 20px auto;
-        padding: 10px;
-        background: var(--background-alt);
-        border-left: 3px solid var(--links);
-      }
-      @media (max-width: 600px) {
-        .summary-item > .summary-day-header {
-          align-items: flex-start;
-          padding: 6px 0;
-        }
-        .summary-body {
-          padding: 10px 0 18px;
-        }
-        .summary-content {
-          font-size: 0.95em;
-        }
-      }
-    </style>
   </head>
   <body>
+    <div class="wrap">
     {{template "nav" .}}
     <h1>Summary</h1>
+    <p class="sub">
+      Daily AI digest of your unreads ·
+      {{if and .Preference .Preference.EnableAISummary}}runs at {{.Preference.AISummaryTime}}{{else}}off{{end}} ·
+      <a href="/preference#ai-summary">change</a>
+    </p>
 
     {{if .Summaries}}
-    <div class="summaries-container">
-      {{range .Summaries}}
-      <details class="summary-item summary-day"{{if eq .Date $.Today}} open{{end}}>
-        <summary class="summary-day-header">
-          <span class="summary-day-heading">
-            <span class="summary-date">{{.Date}}</span>
-            <span class="summary-meta">
-              {{if eq .Date $.Today}}<span class="summary-today">Today</span>{{end}}
-              <span>{{.ArticleCount}} articles</span>
-            </span>
-          </span>
+    <div>
+      {{range $i, $s := .Summaries}}
+      <details class="day"{{if eq $i 0}} open{{end}}>
+        <summary>
+          <span class="date">{{$s.Date}}</span>
+          {{if eq $s.Date $.Today}}<span class="badge">Today</span>{{end}}
+          <span class="count">{{$s.ArticleCount}} articles</span>
+          <span class="tw" aria-hidden="true"></span>
         </summary>
-
-        <article class="summary-body">
-          {{if summaryNeedsPreview .Summary}}
-            <div class="summary-content">
-              {{.Summary | summaryPreview | markdownToHTML}}
-            </div>
-            <details class="summary-details">
-              <summary>
-                <span class="open-label">(+show full summary)</span>
-                <span class="close-label">(-hide full summary)</span>
-              </summary>
-              <div class="summary-content">
-                {{.Summary | markdownToHTML}}
-              </div>
-            </details>
+        <article class="body">
+          {{if summaryNeedsPreview $s.Summary}}
+          <div class="prose">{{$s.Summary | summaryPreview | markdownToHTML}}</div>
+          <details class="more">
+            <summary><span class="open-label">(+ show full summary)</span><span class="close-label">(− hide full summary)</span></summary>
+            <div class="prose" style="margin-top: 0.6rem; font-size: 1.15em">{{$s.Summary | markdownToHTML}}</div>
+          </details>
           {{else}}
-            <div class="summary-content">
-              {{.Summary | markdownToHTML}}
-            </div>
+          <div class="prose">{{$s.Summary | markdownToHTML}}</div>
           {{end}}
-
-          {{if .Categories}}
-          <details class="summary-details summary-coverage">
-            <summary>
-              <span class="open-label">(+show input coverage)</span>
-              <span class="close-label">(-hide input coverage)</span>
-            </summary>
-            <div class="summary-content">
-              {{.Categories | markdownToHTML}}
-            </div>
+          {{if $s.Categories}}
+          <details class="more">
+            <summary><span class="open-label">(+ what went in)</span><span class="close-label">(− hide what went in)</span></summary>
+            <div class="cov prose">{{$s.Categories | markdownToHTML}}</div>
           </details>
           {{end}}
         </article>
@@ -280,13 +44,9 @@
       {{end}}
     </div>
     {{else}}
-    <div class="no-summaries">
-      <p>No AI summaries available yet. Enable AI summary in <a href="{{.SiteURL}}/preference">Preferences</a> to start generating daily summaries.</p>
+    <p class="empty">No summaries yet. Turn on AI summary in <a href="/preference#ai-summary">Preferences</a> and the first one shows up after its next run.</p>
+    {{end}}
+    {{if .Message}}<div data-toast="{{.Message}}" hidden></div>{{end}}
     </div>
-    {{end}}
-
-    {{if .Message}}
-    <div class="message">{{.Message}}</div>
-    {{end}}
   </body>
 </html>

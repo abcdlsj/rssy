@@ -1,22 +1,30 @@
 {{define "nav"}}
 <nav class="navbar" aria-label="Primary navigation">
-  <a href="/" data-nav="home">Home</a>
-  <a href="/feed" data-nav="feed">Feeds</a>
-  <a href="/explore" data-nav="explore">Explore</a>
-  <a href="/stream" data-nav="stream">Stream</a>
-  <a href="/favorites" data-nav="favorites">Favorites</a>
-  <a href="/ai-summary" data-nav="summary">Summary</a>
-  <a href="/preference" data-nav="preference">Preferences</a>
+  <a href="/">Home</a>
+  <a href="/feed">Feeds</a>
+  <a href="/explore">Explore</a>
+  <a href="/stream">Stream</a>
+  <a href="/favorites">Favorites</a>
+  <a href="/ai-summary">Summary</a>
+  <a href="/preference">Preferences</a>
+  <button type="button" class="keys" data-act="help">? shortcuts</button>
 </nav>
-<script>
-  (function () {
-    var path = window.location.pathname;
-    document.querySelectorAll(".navbar a").forEach(function (link) {
-      var href = link.getAttribute("href");
-      var active = href === "/" ? path === "/" || path.indexOf("/article/") === 0 || path.indexOf("/category/") === 0 : path.indexOf(href) === 0;
-      link.classList.toggle("active", active);
-      if (active) link.setAttribute("aria-current", "page");
-    });
-  })();
-</script>
+<div class="helpbox" id="help" hidden>
+  <div class="helpcard" role="dialog" aria-label="Keyboard shortcuts">
+    <h3>Shortcuts</h3>
+    <dl>
+      <dt>j / k</dt><dd>next / prev</dd>
+      <dt>enter</dt><dd>read here</dd>
+      <dt>o</dt><dd>open original</dd>
+      <dt>f</dt><dd>fav / unfav</dd>
+      <dt>e</dt><dd>mark read</dd>
+      <dt>u</dt><dd>undo</dd>
+      <dt>/</dt><dd>search (Explore)</dd>
+      <dt>esc</dt><dd>back to list</dd>
+      <dt>g h</dt><dd>go home</dd>
+      <dt>g f</dt><dd>go to feeds</dd>
+    </dl>
+  </div>
+</div>
+<div class="toast" id="toast" role="status" hidden></div>
 {{end}}

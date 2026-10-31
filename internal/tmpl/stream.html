@@ -4,56 +4,35 @@
     {{template "head" .}}
   </head>
   <body>
+    <div class="wrap">
     {{template "nav" .}}
     <h1>Stream</h1>
-    <div class="stream-meta">
-      <span>from <a href="https://buzzing.cc/" target="_blank">buzzing.cc</a></span>
-      <span> (last fetched at {{.LastFetchTime | timeformat}})</span>
+    <p class="sub">From <a href="https://buzzing.cc/" target="_blank" rel="noopener">buzzing.cc</a> · fetched {{.LastFetchTime | timeformat}}</p>
+
+    <div class="chips" role="group" aria-label="Source">
+      {{range $index, $group := .Groups}}
+      <button type="button" class="chip {{if eq $index 0}}active{{end}}" data-sg="{{$index}}">{{$group.Title}} <span class="n">{{len $group.Items}}</span></button>
+      {{end}}
     </div>
-    <div class="stream-container">
-      <div class="sidebar">
-        <h2>Groups</h2>
-        {{range $index, $group := .Groups}}
-        <div class="group-header {{if eq $index 0}}active{{end}}" data-index="{{$index}}">
-          {{$group.Title}}
+    <hr />
+
+    {{range $index, $group := .Groups}}
+    <div data-sgroup="{{$index}}" {{if ne $index 0}}hidden{{end}}>
+      {{range .Items}}
+      <div class="sitem">
+        <a href="{{.URL}}" target="_blank" rel="noopener" class="article-link">{{.Summary}}</a>
+        <div class="sinfo">
+          {{.Title}}
+          {{if .Author.Name}} · by <a href="{{.Author.URL}}" target="_blank" rel="noopener">{{.Author.Name}}</a>{{end}}
+          · {{.OriginalPublished | buzTimeformat}}
+          {{if gt (len .Links) 0}} · <a href="{{(index .Links 0).URL}}" target="_blank" rel="noopener">(+orig)</a>{{end}}
         </div>
-        {{end}}
       </div>
-      <div class="stream-group-main-content">
-        {{range $index, $group := .Groups}}
-        <div class="group-content {{if eq $index 0}}active{{end}}" data-index="{{$index}}">
-          {{range .Items}}
-          <div class="stream-item">
-            <div class="stream-summary">
-              <a href="{{.URL}}" target="_blank">{{.Summary}}</a>
-            </div>
-            <span class="stream-title">({{.Title}})</span>
-            <span class="stream-info">
-              {{if .Author.Name}}by <a href="{{.Author.URL}}" target="_blank">{{.Author.Name}}</a>,{{end}}
-              {{if gt (len .Links) 0}}<a href="{{(index .Links 0).URL}}" target="_blank">(+origin)</a>{{end}}
-              {{.OriginalPublished | buzTimeformat}}
-            </span>
-          </div>
-          {{end}}
-        </div>
-        {{end}}
-      </div>
+      {{end}}
     </div>
-    <script>
-      document.addEventListener("DOMContentLoaded", function () {
-        document.querySelectorAll(".group-header").forEach((header) => {
-          header.addEventListener("click", function () {
-            const index = this.dataset.index;
-            document
-              .querySelectorAll(".group-header, .group-content")
-              .forEach((element) => element.classList.remove("active"));
-            this.classList.add("active");
-            document
-              .querySelector(`.group-content[data-index="${index}"]`)
-              .classList.add("active");
-          });
-        });
-      });
-    </script>
+    {{else}}
+    <p class="empty">Nothing here yet. The stream refreshes every 12 hours.</p>
+    {{end}}
+    </div>
   </body>
 </html>

@@ -43,6 +43,25 @@ func ServerRouter() *gin.Engine {
 		c.Next()
 	}
 
+	// 页面里用 fetch 调用时带上这个头，接口返回 JSON 而不是重定向
+	wantsJSON := func(c *gin.Context) bool {
+		return c.GetHeader("X-Requested-With") == "fetch"
+	}
+
+	serveAsset := func(name, contentType string) gin.HandlerFunc {
+		return func(c *gin.Context) {
+			data, err := assetFs.ReadFile("assets/" + name)
+			if err != nil {
+				c.Status(http.StatusNotFound)
+				return
+			}
+			c.Header("Cache-Control", "public, max-age=86400")
+			c.Data(http.StatusOK, contentType, data)
+		}
+	}
+	r.GET("/app.css", serveAsset("app.css", "text/css; charset=utf-8"))
+	r.GET("/app.js", serveAsset("app.js", "application/javascript; charset=utf-8"))
+
 	r.GET("/", checklogin, func(c *gin.Context) {
 		email := c.GetString("email")
 
@@ -58,6 +77,8 @@ func ServerRouter() *gin.Engine {
 			"Headline":            "Unreads",
 			"ShowHidden":          c.Query("show_hidden") == "true",
 			"DisplayHiddenToggle": true,
+			"IsHome":              true,
+			"Categories":          getCategories(email),
 		})
 	})
 
@@ -86,6 +107,7 @@ func ServerRouter() *gin.Engine {
 			"CurrentCategory": currentCategory,
 			"SiteURL":         SiteURL,
 			"InboxFeeds":      getFeedsByCategory(email, ""),
+			"UnreadCounts":    getUnreadCounts(email),
 		})
 	})
 
@@ -105,9 +127,10 @@ func ServerRouter() *gin.Engine {
 		}
 
 		c.HTML(http.StatusOK, "articles.html", gin.H{
-			"Articles": articles,
-			"SiteURL":  SiteURL,
-			"Headline": headline,
+			"Articles":   articles,
+			"SiteURL":    SiteURL,
+			"Headline":   headline,
+			"IsCategory": true,
 		})
 	})
 
@@ -171,6 +194,10 @@ func ServerRouter() *gin.Engine {
 		}
 
 		refreshFeed(email, id)
+		if wantsJSON(c) {
+			c.JSON(http.StatusOK, gin.H{"ok": true})
+			return
+		}
 		c.Redirect(http.StatusFound, "/feed/"+id)
 	})
 
@@ -190,9 +217,16 @@ func ServerRouter() *gin.Engine {
 
 		log.Infof("update feed: %s, %t, %t, %t, %s", id, hide, enableReadability, highlight, category)
 
-		updateFeed(email, id, hide, enableReadability, highlight)
-		if category != "" {
+		if err := updateFeed(email, id, hide, enableReadability, highlight); err != nil {
+			c.String(http.StatusInternalServerError, err.Error())
+			return
+		}
+		if c.PostForm("set_category") == "true" || category != "" {
 			updateFeedCategory(email, id, category)
+		}
+		if wantsJSON(c) {
+			c.JSON(http.StatusOK, gin.H{"ok": true})
+			return
 		}
 		c.Redirect(http.StatusFound, "/feed/"+id)
 	})
@@ -304,12 +338,58 @@ func ServerRouter() *gin.Engine {
 			c.String(http.StatusNotFound, "Article not found")
 			return
 		}
+		from := c.Query("from")
+		if from != "favorites" {
+			from = "home"
+		}
 		c.HTML(http.StatusOK, "content.html", gin.H{
 			"SiteURL":   SiteURL,
+			"Article":   article,
 			"Title":     article.Title,
 			"PublishAt": article.PublishAt,
 			"Content":   article.Content,
+			"From":      from,
+			"Nav":       getReaderNav(article, email, from),
 		})
+	})
+
+	// 标记已读 / 未读（列表页的 done 和撤销）
+	r.POST("/article/:uid/mark", checklogin, func(c *gin.Context) {
+		uid := c.Param("uid")
+		email := c.GetString("email")
+		if email == "" || uid == "" {
+			c.String(http.StatusBadRequest, "invalid request")
+			return
+		}
+		read := c.PostForm("read") != "false"
+		if err := setArticleRead(uid, email, read); err != nil {
+			c.String(http.StatusInternalServerError, err.Error())
+			return
+		}
+		if wantsJSON(c) {
+			c.JSON(http.StatusOK, gin.H{"read": read})
+			return
+		}
+		c.Redirect(http.StatusSeeOther, "/")
+	})
+
+	r.POST("/articles/mark", checklogin, func(c *gin.Context) {
+		email := c.GetString("email")
+		if email == "" {
+			c.String(http.StatusBadRequest, "invalid request")
+			return
+		}
+		read := c.PostForm("read") != "false"
+		n, err := setArticlesRead(c.PostFormArray("uid"), email, read)
+		if err != nil {
+			c.String(http.StatusInternalServerError, err.Error())
+			return
+		}
+		if wantsJSON(c) {
+			c.JSON(http.StatusOK, gin.H{"count": n, "read": read})
+			return
+		}
+		c.Redirect(http.StatusSeeOther, "/")
 	})
 
 	r.GET("/article/:uid/delete", checklogin, func(c *gin.Context) {
@@ -342,6 +422,10 @@ func ServerRouter() *gin.Engine {
 		err := toggleFavorite(uid, email)
 		if err != nil {
 			c.String(http.StatusInternalServerError, err.Error())
+			return
+		}
+		if wantsJSON(c) {
+			c.JSON(http.StatusOK, gin.H{"favorite": isArticleFavorite(uid, email)})
 			return
 		}
 
@@ -502,7 +586,7 @@ func ServerRouter() *gin.Engine {
 		pageData.Back = exploreURL(query, category, page)
 
 		if c.Query("added") != "" {
-			pageData.Notice = "已添加订阅：" + c.Query("added")
+			pageData.Notice = "Subscribed: " + c.Query("added")
 		}
 		if message := c.Query("error"); message != "" {
 			pageData.ErrorMessage = message
@@ -510,7 +594,7 @@ func ServerRouter() *gin.Engine {
 
 		if data == nil {
 			if lastErr != "" {
-				pageData.ErrorMessage = "RSSHub 数据获取失败：" + lastErr
+				pageData.ErrorMessage = "Could not load RSSHub routes: " + lastErr
 			}
 			c.HTML(http.StatusOK, "explore.html", pageData)
 			return
@@ -554,13 +638,13 @@ func ServerRouter() *gin.Engine {
 		}
 
 		if feedURL == "" || !strings.HasPrefix(feedURL, exploreBaseURL()) {
-			c.Redirect(http.StatusSeeOther, back+exploreJoin(back)+"error="+url.QueryEscape("无效的 RSSHub 地址"))
+			c.Redirect(http.StatusSeeOther, back+exploreJoin(back)+"error="+url.QueryEscape("Not a valid RSSHub URL"))
 			return
 		}
 
 		if _, err := addFeedAndCreateArticles(feedURL, email); err != nil {
 			log.Errorf("add explore feed %s: %v", feedURL, err)
-			message := "订阅失败，RSSHub 可能暂时无法获取该路由，稍后重试：" + err.Error()
+			message := "Could not subscribe. RSSHub may not be able to fetch this route right now, try again later: " + err.Error()
 			c.Redirect(http.StatusSeeOther, back+exploreJoin(back)+"error="+url.QueryEscape(message))
 			return
 		}
@@ -653,6 +737,10 @@ func ServerRouter() *gin.Engine {
 		err := updateFeedCategory(email, id, category)
 		if err != nil {
 			c.String(http.StatusInternalServerError, "Failed to update feed category: %v", err)
+			return
+		}
+		if wantsJSON(c) {
+			c.JSON(http.StatusOK, gin.H{"ok": true})
 			return
 		}
 
@@ -756,10 +844,12 @@ func ServerRouter() *gin.Engine {
 			summaries = []AISummary{}
 		}
 
+		pref, _ := getUserPreference(email)
 		c.HTML(http.StatusOK, "ai-summary.html", gin.H{
-			"SiteURL":   SiteURL,
-			"Summaries": summaries,
-			"Today":     time.Now().In(TimeZone).Format("2006-01-02"),
+			"SiteURL":    SiteURL,
+			"Summaries":  summaries,
+			"Preference": pref,
+			"Today":      time.Now().In(TimeZone).Format("2006-01-02"),
 		})
 	})
 

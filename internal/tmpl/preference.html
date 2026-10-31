@@ -2,279 +2,129 @@
 <html lang="en">
   <head>
     {{template "head" .}}
-    <style>
-      .preference-page fieldset {
-        margin-bottom: 20px;
-        padding: 15px;
-      }
-      .preference-page legend {
-        padding: 0 8px;
-        font-weight: bold;
-      }
-      .preference-page label {
-        display: block;
-        margin-bottom: 10px;
-      }
-      .preference-page .checkbox-label {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-      }
-      .preference-page input[type="checkbox"] {
-        width: auto;
-        margin: 0;
-      }
-      .preference-page input[type="text"],
-      .preference-page input[type="number"],
-      .preference-page input[type="time"],
-      .preference-page input[type="email"],
-      .preference-page input[type="password"],
-      .preference-page textarea {
-        display: block;
-        box-sizing: border-box;
-        width: 100%;
-        max-width: 420px;
-        margin-top: 5px;
-      }
-      .preference-page textarea {
-        max-width: 620px;
-        min-height: 180px;
-        resize: vertical;
-      }
-      .category-add-form {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 10px 12px;
-        align-items: end;
-      }
-      .category-add-form label {
-        margin: 0;
-      }
-      .category-name-field {
-        flex: 1 1 240px;
-        min-width: 0;
-        max-width: 420px;
-      }
-      .category-color-field {
-        flex: 0 0 60px;
-        width: 60px;
-      }
-      .category-add-form input[type="text"] {
-        width: 100%;
-        margin: 5px 0 0;
-      }
-      .category-add-form input[type="color"] {
-        width: 52px;
-        height: 32px;
-        margin: 5px 0 0;
-        padding: 2px;
-      }
-      .compact-button {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        flex: 0 0 auto;
-        width: auto;
-        min-width: 0;
-        min-height: 32px;
-        margin: 0;
-        padding: 5px 10px;
-        font-size: 0.85em;
-        line-height: 1.2;
-        white-space: nowrap;
-        cursor: pointer;
-      }
-      .category-list {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 7px;
-        margin-top: 14px;
-      }
-      .category-tag {
-        min-height: 30px;
-        display: inline-flex;
-        align-items: center;
-        gap: 5px;
-        padding: 3px 5px 3px 8px;
-        background: var(--background-alt);
-        border: 1px solid var(--border);
-        border-radius: 4px;
-        font-size: 0.8em;
-      }
-      .category-tag form {
-        display: inline-flex;
-        margin: 0;
-      }
-      .category-delete {
-        width: 24px;
-        min-width: 24px;
-        min-height: 24px;
-        margin-left: 2px;
-        padding: 0;
-        font-size: 1em;
-      }
-      .settings-actions {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 8px;
-        margin-top: 12px;
-      }
-      .admin-only {
-        border-color: #c97575;
-      }
-      .message {
-        margin: 20px 0;
-        padding: 10px;
-        background: var(--background-alt);
-        border-left: 3px solid var(--links);
-      }
-      @media (max-width: 600px) {
-        .category-add-form {
-          align-items: end;
-        }
-        .category-name-field {
-          flex-basis: 100%;
-          max-width: none;
-        }
-        .settings-actions {
-          gap: 6px 12px;
-        }
-      }
-    </style>
   </head>
-  <body class="preference-page">
+  <body>
+    <div class="wrap">
     {{template "nav" .}}
     <h1>Preferences</h1>
+    <p class="sub">Categories save right away. Everything else applies after you save.</p>
+    {{if .Message}}<div data-toast="{{.Message}}" data-strip="message" hidden></div>{{end}}
 
-    {{if .Message}}
-    <div class="message">{{.Message}}</div>
-    {{end}}
-
-    <fieldset>
-      <legend>Category Management</legend>
-      <form method="post" action="{{.SiteURL}}/category/add" class="category-add-form">
-        <label for="category_name" class="category-name-field">
-          New category name:
-          <input type="text" id="category_name" name="name" required />
-        </label>
-        <label for="category_color" class="category-color-field">
-          Color:
-          <input type="color" id="category_color" name="color" value="#007bff" />
-        </label>
-        <button type="submit" class="compact-button">Add</button>
-      </form>
-
+    <section class="sect" id="categories">
+      <h2>Categories</h2>
+      <p class="hint">Group feeds. Ones marked * are built in and can't be removed.</p>
       {{if .Categories}}
-      <div class="category-list">
+      <div class="cats">
         {{range $cat := .Categories}}
-        <div class="category-tag">
-          <span class="category-tag-color" style="background-color: {{$cat.Color}};"></span>
-          <span>{{$cat.Name}}</span>
+        <span class="chip">
+          <span class="dot" style="background-color: {{$cat.Color}}"></span>{{$cat.Name}}
           {{if $cat.Email}}
-          <form method="post" action="{{$.SiteURL}}/category/delete/{{$cat.Name}}">
-            <button type="submit" class="compact-button category-delete" title="Delete category" aria-label="Delete {{$cat.Name}}">×</button>
+          <form method="POST" action="/category/delete/{{$cat.Name}}">
+            <button type="submit" class="x" data-confirm="delete?" title="Delete {{$cat.Name}}" aria-label="Delete {{$cat.Name}}">×</button>
           </form>
-          {{else}}
-          <span class="system-marker">*</span>
-          {{end}}
-        </div>
+          {{else}}<span class="n">*</span>{{end}}
+        </span>
         {{end}}
       </div>
       {{end}}
-    </fieldset>
+      <form method="POST" action="/category/add" class="addrow">
+        <input class="input" type="text" id="category_name" name="name" required placeholder="New category name" aria-label="New category name" style="flex: 0 1 16rem" />
+        <input class="colorpick" type="color" id="category_color" name="color" value="#0076d1" aria-label="Category color" />
+        <button type="submit" class="btn">Add</button>
+      </form>
+    </section>
 
-    <form method="post" action="{{.SiteURL}}/preference/update">
-      <fieldset>
-        <legend>Data Cleanup Settings</legend>
-        <label for="cleanup_expired_days">
-          Delete unread articles older than (days):
-          <input type="number" id="cleanup_expired_days" name="cleanup_expired_days" value="{{.Preference.CleanupExpiredDays}}" min="1" max="365" required />
-        </label>
-        <label class="checkbox-label">
-          <input type="checkbox" name="enable_auto_cleanup" {{if .Preference.EnableAutoCleanup}}checked{{end}} />
-          Enable automatic cleanup
-        </label>
-        <div class="settings-actions">
-          <button type="submit" name="action" value="cleanup_expired" class="compact-button">Clean expired</button>
-          <button type="submit" name="action" value="cleanup_read" class="compact-button">Clean read</button>
+    <form method="POST" action="/preference/update" id="prefs" autocomplete="off">
+      <section class="sect" id="cleanup">
+        <h2>Cleanup</h2>
+        <p class="hint">Keeps the database small.</p>
+        <div class="frm">
+          <label class="k" for="cleanup_expired_days">Delete unread after</label>
+          <div class="v"><input class="input num" type="number" id="cleanup_expired_days" name="cleanup_expired_days" value="{{.Preference.CleanupExpiredDays}}" min="1" max="365" required /><span class="unit">days</span></div>
+          <span class="k"></span>
+          <div class="v"><label class="check" for="enable_auto_cleanup"><input type="checkbox" id="enable_auto_cleanup" name="enable_auto_cleanup" {{if .Preference.EnableAutoCleanup}}checked{{end}} />Clean up automatically every day</label></div>
+          <span class="k">Run now</span>
+          <div class="v">
+            <button type="button" class="btn danger" data-clean="expired">Clean expired</button>
+            <button type="button" class="btn danger" data-clean="read">Clean read</button>
+            <span class="confirm" id="clean-expired" hidden>
+              <span>Delete unread articles older than {{.Preference.CleanupExpiredDays}} days?</span>
+              <button type="submit" name="action" value="cleanup_expired" class="btn sm solid-danger">Delete</button>
+              <button type="button" class="btn sm" data-act="cleanno">Cancel</button>
+            </span>
+            <span class="confirm" id="clean-read" hidden>
+              <span>Delete every read article?</span>
+              <button type="submit" name="action" value="cleanup_read" class="btn sm solid-danger">Delete</button>
+              <button type="button" class="btn sm" data-act="cleanno">Cancel</button>
+            </span>
+          </div>
         </div>
-      </fieldset>
+      </section>
 
-      <fieldset>
-        <legend>Notification Settings</legend>
-        <label class="checkbox-label">
-          <input type="checkbox" name="enable_notification" {{if .Preference.EnableNotification}}checked{{end}} />
-          Enable daily notifications
-        </label>
-        <label for="notification_time">
-          Notification time:
-          <input type="time" id="notification_time" name="notification_time" value="{{.Preference.NotificationTime}}" required />
-        </label>
-        <label for="sendcloud_api_user">
-          SendCloud API User:
-          <input type="text" id="sendcloud_api_user" name="sendcloud_api_user" value="{{.Preference.SendCloudAPIUser}}" />
-        </label>
-        <label for="sendcloud_api_key">
-          SendCloud API Key:
-          <input type="password" id="sendcloud_api_key" name="sendcloud_api_key" value="{{.Preference.SendCloudAPIKey}}" />
-        </label>
-        <label for="sendcloud_from">
-          SendCloud From Email:
-          <input type="email" id="sendcloud_from" name="sendcloud_from" value="{{.Preference.SendCloudFrom}}" placeholder="noreply@example.com" />
-        </label>
-        <label for="sendcloud_from_name">
-          SendCloud From Name:
-          <input type="text" id="sendcloud_from_name" name="sendcloud_from_name" value="{{.Preference.SendCloudFromName}}" placeholder="RSSy" />
-        </label>
-      </fieldset>
+      <section class="sect" id="email">
+        <h2>Email digest</h2>
+        <p class="hint">A daily email of new unreads, sent through SendCloud.</p>
+        <div class="frm">
+          <span class="k"></span>
+          <div class="v"><label class="check" for="enable_notification"><input type="checkbox" id="enable_notification" name="enable_notification" {{if .Preference.EnableNotification}}checked{{end}} />Send daily email</label></div>
+          <label class="k" for="notification_time">Send at</label>
+          <div class="v" data-dep="enable_notification"><input class="input time" type="time" id="notification_time" name="notification_time" value="{{.Preference.NotificationTime}}" required /></div>
+          <label class="k" for="sendcloud_api_user">API user</label>
+          <div class="v" data-dep="enable_notification"><input class="input" type="text" id="sendcloud_api_user" name="sendcloud_api_user" value="{{.Preference.SendCloudAPIUser}}" /></div>
+          <label class="k" for="sendcloud_api_key">API key</label>
+          <div class="v" data-dep="enable_notification"><input class="input secret" type="password" id="sendcloud_api_key" name="sendcloud_api_key" value="{{.Preference.SendCloudAPIKey}}" /><button type="button" class="reveal" data-reveal="sendcloud_api_key" hidden>show</button></div>
+          <label class="k" for="sendcloud_from">From address</label>
+          <div class="v" data-dep="enable_notification"><input class="input" type="email" id="sendcloud_from" name="sendcloud_from" value="{{.Preference.SendCloudFrom}}" placeholder="noreply@example.com" /></div>
+          <label class="k" for="sendcloud_from_name">From name</label>
+          <div class="v" data-dep="enable_notification"><input class="input" type="text" id="sendcloud_from_name" name="sendcloud_from_name" value="{{.Preference.SendCloudFromName}}" placeholder="RSSy" /></div>
+        </div>
+      </section>
 
-      <fieldset>
-        <legend>AI Summary Settings</legend>
-        <label class="checkbox-label">
-          <input type="checkbox" name="enable_ai_summary" {{if .Preference.EnableAISummary}}checked{{end}} />
-          Enable daily AI summary
-        </label>
-        <label for="ai_summary_time">
-          AI summary time:
-          <input type="time" id="ai_summary_time" name="ai_summary_time" value="{{.Preference.AISummaryTime}}" required />
-        </label>
-        <label for="ai_summary_prompt">
-          AI summary prompt:
-          <textarea id="ai_summary_prompt" name="ai_summary_prompt" rows="10" required>{{.Preference.AISummaryPrompt}}</textarea>
-        </label>
-      </fieldset>
+      <section class="sect" id="ai-summary">
+        <h2>AI summary</h2>
+        <p class="hint">Shows up on the <a href="/ai-summary">Summary</a> page each day.</p>
+        <div class="frm">
+          <span class="k"></span>
+          <div class="v"><label class="check" for="enable_ai_summary"><input type="checkbox" id="enable_ai_summary" name="enable_ai_summary" {{if .Preference.EnableAISummary}}checked{{end}} />Write a daily summary</label></div>
+          <label class="k" for="ai_summary_time">Run at</label>
+          <div class="v" data-dep="enable_ai_summary"><input class="input time" type="time" id="ai_summary_time" name="ai_summary_time" value="{{.Preference.AISummaryTime}}" required /></div>
+          <label class="k full" for="ai_summary_prompt">Prompt</label>
+          <div class="v full" data-dep="enable_ai_summary"><textarea class="textarea" id="ai_summary_prompt" name="ai_summary_prompt" rows="8" required>{{.Preference.AISummaryPrompt}}</textarea></div>
+        </div>
+      </section>
 
       {{if .IsAdmin}}
-      <fieldset class="admin-only">
-        <legend>Admin Settings - OpenAI Configuration</legend>
-        <label for="openai_api_key">
-          OpenAI API Key:
-          <input type="password" id="openai_api_key" name="openai_api_key" value="{{.Preference.OpenAIAPIKey}}" />
-        </label>
-        <label for="openai_endpoint">
-          OpenAI Endpoint (optional):
-          <input type="text" id="openai_endpoint" name="openai_endpoint" value="{{.Preference.OpenAIEndpoint}}" placeholder="https://api.openai.com/v1" />
-        </label>
-      </fieldset>
+      <section class="sect" id="openai">
+        <h2>OpenAI <span class="admin">ADMIN</span></h2>
+        <p class="hint">Used by AI summary for every user.</p>
+        <div class="frm">
+          <label class="k" for="openai_api_key">API key</label>
+          <div class="v"><input class="input secret" type="password" id="openai_api_key" name="openai_api_key" value="{{.Preference.OpenAIAPIKey}}" /><button type="button" class="reveal" data-reveal="openai_api_key" hidden>show</button></div>
+          <label class="k" for="openai_endpoint">Endpoint</label>
+          <div class="v"><input class="input" type="text" id="openai_endpoint" name="openai_endpoint" value="{{.Preference.OpenAIEndpoint}}" placeholder="https://api.openai.com/v1 (default)" /></div>
+        </div>
+      </section>
 
-      <fieldset class="admin-only">
-        <legend>Admin Settings - GitHub Login</legend>
-        <label class="checkbox-label">
-          <input type="checkbox" name="enable_github_login" {{if .Preference.EnableGitHubLogin}}checked{{end}} />
-          Enable GitHub login for all users
-        </label>
-        <label for="github_client_id">
-          GitHub Client ID:
-          <input type="text" id="github_client_id" name="github_client_id" value="{{.Preference.GitHubClientID}}" />
-        </label>
-        <label for="github_secret">
-          GitHub Client Secret:
-          <input type="password" id="github_secret" name="github_secret" value="{{.Preference.GitHubSecret}}" />
-        </label>
-      </fieldset>
+      <section class="sect" id="github">
+        <h2>GitHub login <span class="admin">ADMIN</span></h2>
+        <p class="hint">Let anyone sign in with GitHub.</p>
+        <div class="frm">
+          <span class="k"></span>
+          <div class="v"><label class="check" for="enable_github_login"><input type="checkbox" id="enable_github_login" name="enable_github_login" {{if .Preference.EnableGitHubLogin}}checked{{end}} />Enable GitHub login</label></div>
+          <label class="k" for="github_client_id">Client ID</label>
+          <div class="v" data-dep="enable_github_login"><input class="input" type="text" id="github_client_id" name="github_client_id" value="{{.Preference.GitHubClientID}}" /></div>
+          <label class="k" for="github_secret">Client secret</label>
+          <div class="v" data-dep="enable_github_login"><input class="input secret" type="password" id="github_secret" name="github_secret" value="{{.Preference.GitHubSecret}}" /><button type="button" class="reveal" data-reveal="github_secret" hidden>show</button></div>
+        </div>
+      </section>
       {{end}}
 
-      <button type="submit" name="action" value="save" class="compact-button">Save settings</button>
+      <div class="savebar">
+        <span class="msg">All changes saved</span>
+        <button type="button" class="btn" data-act="discard" hidden>Discard</button>
+        <button type="submit" name="action" value="save" class="btn primary">Save</button>
+      </div>
     </form>
+    </div>
   </body>
 </html>

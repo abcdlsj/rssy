@@ -1,239 +1,54 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="en">
   <head>
     {{template "head" .}}
     {{if and .Loading (not .Items)}}
     <meta http-equiv="refresh" content="6" />
     {{end}}
-    <style>
-      .explore-header {
-        display: flex;
-        align-items: baseline;
-        justify-content: space-between;
-        gap: 10px;
-        flex-wrap: wrap;
-        margin-bottom: 4px;
-      }
-      .explore-header h1 {
-        margin: 0;
-      }
-      .explore-meta {
-        font-size: 0.8em;
-        color: #666;
-      }
-      .explore-banner {
-        margin: 10px 0;
-        padding: 8px 10px;
-        border-radius: 6px;
-        font-size: 0.9em;
-        background: var(--button-base);
-        border: 1px solid var(--border);
-      }
-      .explore-banner.error {
-        border-color: #d9534f;
-      }
-      .explore-search {
-        display: flex;
-        gap: 6px;
-        margin: 12px 0 8px;
-      }
-      .explore-search input[type="search"] {
-        flex: 1;
-        min-width: 0;
-        margin: 0;
-      }
-      .explore-search input[type="submit"] {
-        margin: 0;
-        white-space: nowrap;
-      }
-      .explore-chips {
-        display: flex;
-        gap: 6px;
-        overflow-x: auto;
-        padding-bottom: 6px;
-        margin-bottom: 10px;
-        scrollbar-width: none;
-      }
-      .explore-chips::-webkit-scrollbar {
-        display: none;
-      }
-      .explore-chip {
-        flex: 0 0 auto;
-        display: inline-flex;
-        align-items: center;
-        min-height: 32px;
-        padding: 4px 10px;
-        border: 1px solid var(--border);
-        border-radius: 16px;
-        background: var(--button-base);
-        color: var(--text-main);
-        font-size: 0.82em;
-        text-decoration: none;
-        white-space: nowrap;
-      }
-      .explore-chip.active {
-        background: var(--selection);
-        font-weight: bold;
-      }
-      .explore-item {
-        display: flex;
-        align-items: flex-start;
-        gap: 10px;
-        padding: 10px 0;
-        border-bottom: 1px solid var(--border);
-      }
-      .explore-main {
-        flex: 1;
-        min-width: 0;
-      }
-      .explore-name {
-        font-weight: 600;
-        text-decoration: none;
-        overflow-wrap: anywhere;
-      }
-      .explore-ns {
-        font-size: 0.8em;
-        font-weight: 400;
-        color: #666;
-        margin-left: 6px;
-      }
-      .explore-desc {
-        margin: 2px 0 0;
-        font-size: 0.85em;
-        line-height: 1.4;
-        color: #555;
-        overflow-wrap: anywhere;
-      }
-      .explore-path {
-        margin-top: 2px;
-        font-size: 0.75em;
-        color: #888;
-        overflow-wrap: anywhere;
-      }
-      .explore-badge {
-        display: inline-block;
-        margin-left: 6px;
-        padding: 0 5px;
-        border: 1px solid var(--border);
-        border-radius: 4px;
-        font-size: 0.72em;
-        font-weight: 400;
-        color: #666;
-      }
-      .explore-add {
-        flex: 0 0 auto;
-        margin: 0;
-      }
-      .explore-add button {
-        min-width: 44px;
-        min-height: 36px;
-        margin: 0;
-        padding: 0 10px;
-        border-radius: 8px;
-        font-size: 0.9em;
-        cursor: pointer;
-      }
-      .explore-add button.added {
-        opacity: 0.6;
-        cursor: default;
-      }
-      .explore-pager {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        margin: 18px 0 8px;
-        font-size: 0.9em;
-      }
-      .explore-pager a {
-        min-height: 36px;
-        display: inline-flex;
-        align-items: center;
-        padding: 0 12px;
-        border: 1px solid var(--border);
-        border-radius: 8px;
-        text-decoration: none;
-      }
-      .explore-pager span {
-        color: #666;
-      }
-      @media (max-width: 640px) {
-        .explore-desc {
-          display: -webkit-box;
-          -webkit-line-clamp: 3;
-          -webkit-box-orient: vertical;
-          overflow: hidden;
-        }
-        .explore-item {
-          padding: 12px 0;
-        }
-        .explore-search input[type="submit"] {
-          padding: 0 14px;
-        }
-      }
-      @media (prefers-color-scheme: dark) {
-        .explore-meta,
-        .explore-ns,
-        .explore-desc,
-        .explore-path,
-        .explore-badge,
-        .explore-pager span {
-          color: #a0aec0;
-        }
-      }
-    </style>
   </head>
   <body>
+    <div class="wrap">
     {{template "nav" .}}
-    <div class="explore-header">
-      <h1>RSSHub Explore</h1>
-      <div class="explore-meta">
-        {{if .RouteCount}}{{.RouteCount}} routes · 更新于 {{timeformat .UpdatedAt}}{{end}}
-      </div>
-    </div>
+    <h1>Explore<small>RSSHub{{if .RouteCount}} · {{.RouteCount}} routes · updated {{timeformat .UpdatedAt}}{{end}}</small></h1>
 
-    {{if .Notice}}<div class="explore-banner">{{.Notice}}</div>{{end}}
-    {{if .ErrorMessage}}<div class="explore-banner error">{{.ErrorMessage}}</div>{{end}}
-    {{if and .Loading (not .Items)}}<div class="explore-banner">正在从 {{.RSSHubURL}} 拉取路由表，本页会自动刷新…</div>{{end}}
+    {{if .Notice}}<div data-toast="{{.Notice}}" data-strip="added" hidden></div>{{end}}
+    {{if .ErrorMessage}}<div class="banner error">{{.ErrorMessage}}</div>{{end}}
+    {{if and .Loading (not .Items)}}<div class="banner">Loading the route list from {{.RSSHubURL}}. This page refreshes on its own.</div>{{end}}
 
-    <form method="GET" action="/explore" class="explore-search">
-      <input type="search" name="q" value="{{.Query}}" placeholder="搜索站点、路由或描述，如 bilibili / 新闻" aria-label="搜索 RSSHub 路由" />
+    <form method="GET" action="/explore" class="search">
+      <input class="input" id="explore-q" type="search" name="q" value="{{.Query}}" placeholder="Search sites or routes, e.g. bilibili, github" aria-label="Search RSSHub routes" />
       <input type="hidden" name="category" value="{{.Category}}" />
-      <input type="submit" value="搜索" />
+      <button class="btn" type="submit">Search</button>
     </form>
 
-    <div class="explore-chips">
-      <a class="explore-chip {{if eq .Category "featured"}}active{{end}}" href="/explore?category=featured">推荐</a>
-      <a class="explore-chip {{if eq .Category "all"}}active{{end}}" href="/explore?category=all">全部</a>
+    <div class="chips" role="group" aria-label="Category">
+      <a class="chip {{if eq .Category "featured"}}active{{end}}" href="/explore?category=featured{{if .Query}}&q={{.Query}}{{end}}">Featured</a>
+      <a class="chip {{if eq .Category "all"}}active{{end}}" href="/explore?category=all{{if .Query}}&q={{.Query}}{{end}}">All</a>
       {{range .Categories}}
-      <a class="explore-chip {{if eq $.Category .Name}}active{{end}}" href="/explore?category={{.Name}}">{{.Label}} {{.Count}}</a>
+      <a class="chip {{if eq $.Category .Name}}active{{end}}" href="/explore?category={{.Name}}{{if $.Query}}&q={{$.Query}}{{end}}">{{.Label}} <span class="n">{{.Count}}</span></a>
       {{end}}
     </div>
 
-    {{if .Total}}<div class="explore-meta">共 {{.Total}} 条，第 {{.Page}}/{{.TotalPages}} 页</div>{{end}}
+    {{if .Total}}<p class="sub" style="margin: 0.75rem 0 0">{{.Total}} routes · page {{.Page}} of {{.TotalPages}}</p>{{end}}
 
     <div class="explore-list">
       {{range .Items}}
-      <div class="explore-item">
-        <div class="explore-main">
-          <div>
-            <a class="explore-name" href="{{.Link}}" target="_blank" rel="noopener">{{.Name}}</a>
-            <span class="explore-ns">{{.NamespaceName}}</span>
-            {{if .RequiresSetup}}<span class="explore-badge">需配置</span>{{end}}
-            {{if .AntiCrawler}}<span class="explore-badge">反爬</span>{{end}}
-          </div>
-          {{if .Description}}<div class="explore-desc">{{.Description}}</div>{{end}}
-          <div class="explore-path">{{.Example}}</div>
+      <div class="xitem">
+        <div class="main">
+          <a href="{{.Link}}" target="_blank" rel="noopener">{{.Name}}</a><span class="ns">{{.NamespaceName}}</span>
+          {{if .RequiresSetup}}<span class="tag" title="Needs extra config on the RSSHub instance">needs config</span>{{end}}
+          {{if .AntiCrawler}}<span class="tag" title="The source may block or rate-limit fetching">rate-limited</span>{{end}}
+          {{if .Description}}<div class="desc">{{.Description}}</div>{{end}}
+          <div class="path">{{.Example}}</div>
         </div>
         {{if .Added}}
-        <form class="explore-add" method="POST" action="/explore/add">
-          <button type="button" class="added" disabled title="已订阅">✓</button>
-        </form>
+        <button type="button" class="btn sm" disabled>✓ Added</button>
         {{else}}
         <form class="explore-add" method="POST" action="/explore/add">
           <input type="hidden" name="url" value="{{.Link}}" />
           <input type="hidden" name="name" value="{{.Name}}" />
           <input type="hidden" name="back" value="{{$.Back}}" />
-          <button type="submit" title="订阅 {{.Name}}">+</button>
+          <button type="submit" class="btn sm" title="Subscribe to {{.Name}}">+ Add</button>
         </form>
         {{end}}
       </div>
@@ -241,33 +56,20 @@
     </div>
 
     {{if eq (len .Items) 0}}
-    <p class="empty-state">{{if .Loading}}正在加载…{{else}}没有匹配的路由，换个关键词试试。{{end}}</p>
+    <p class="empty">{{if .Loading}}Loading…{{else if .Query}}No routes match “{{.Query}}”. Try a site name.{{else}}No routes in this category.{{end}}</p>
     {{end}}
 
     {{if gt .TotalPages 1}}
-    <div class="explore-pager">
-      {{if .HasPrev}}<a href="{{.PrevURL}}">上一页</a>{{end}}
-      <span>{{.Page}} / {{.TotalPages}}</span>
-      {{if .HasNext}}<a href="{{.NextURL}}">下一页</a>{{end}}
+    <div class="pager">
+      {{if .HasPrev}}<a class="btn sm" href="{{.PrevURL}}">← Prev</a>{{else}}<span class="btn sm" aria-hidden="true" style="opacity:.35">← Prev</span>{{end}}
+      <span class="dim">{{.Page}} / {{.TotalPages}}</span>
+      {{if .HasNext}}<a class="btn sm" href="{{.NextURL}}">Next →</a>{{else}}<span class="btn sm" aria-hidden="true" style="opacity:.35">Next →</span>{{end}}
     </div>
     {{end}}
 
-    <form method="POST" action="/explore/refresh" style="margin-top: 20px">
-      <button type="submit" style="background: none; border: none; padding: 0; font-size: 0.8em; cursor: pointer">重新拉取 RSSHub 路由表</button>
+    <form method="POST" action="/explore/refresh" style="margin-top: 2.5rem">
+      <button type="submit" class="dim" style="font-size: 0.8em">Reload route list from RSSHub</button>
     </form>
-
-    <script>
-      // 订阅需要等服务端把 feed 拉回来，提交后先给出反馈
-      document.addEventListener("submit", function (event) {
-        var form = event.target;
-        if (!form.classList || !form.classList.contains("explore-add")) return;
-        var button = form.querySelector("button[type='submit']");
-        if (!button) return;
-        setTimeout(function () {
-          button.disabled = true;
-          button.textContent = "…";
-        }, 0);
-      });
-    </script>
+    </div>
   </body>
 </html>

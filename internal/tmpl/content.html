@@ -2,18 +2,43 @@
 <html lang="en">
   <head>
     {{template "head" .}}
+    {{template "hljs" .}}
   </head>
   <body>
+    <div class="progress" aria-hidden="true"></div>
+    <div class="wrap">
     {{template "nav" .}}
-    <main class="article-content">
-      <div class="article-title">{{.Title}}</div>
-      <div class="article-meta">
-        <span>At: {{timeformat .PublishAt}}</span>
+    {{$back := "/"}}{{$backLabel := "Unreads"}}
+    {{if eq .From "favorites"}}{{$back = "/favorites"}}{{$backLabel = "Favorites"}}{{end}}
+    <main class="reader">
+      <div class="rbar">
+        <a class="btn sm" href="{{$back}}" data-back title="Back (esc)">← <span class="txt">{{$backLabel}}</span></a>
+        <span class="pos">{{if .Nav.Index}}{{.Nav.Index}} / {{.Nav.Total}}{{end}}</span>
+        <form method="POST" action="/article/{{.Article.Uid}}/favorite" class="inline">
+          <button type="submit" class="btn sm{{if .Article.Favorite}} on{{end}}" data-reader-fav="{{.Article.Uid}}" title="Favorite (f)"><span class="ic">{{if .Article.Favorite}}★{{else}}☆{{end}}</span> <span class="txt">{{if .Article.Favorite}}Faved{{else}}Fav{{end}}</span></button>
+        </form>
+        <a class="btn sm" href="{{.Article.Link}}" target="_blank" rel="noopener" data-orig title="Open original (o)">↗ <span class="txt">Original</span></a>
+        {{if .Nav.Prev}}<a class="btn sm icon" href="/article/{{.Nav.Prev.Uid}}/read?from={{.From}}" title="Previous (k)" aria-label="Previous">‹</a>{{else}}<span class="btn sm icon" aria-hidden="true" style="opacity:.35">‹</span>{{end}}
+        {{if .Nav.Next}}<a class="btn sm icon" href="/article/{{.Nav.Next.Uid}}/read?from={{.From}}" title="Next (j)" aria-label="Next">›</a>{{else}}<span class="btn sm icon" aria-hidden="true" style="opacity:.35">›</span>{{end}}
       </div>
-      <hr />
+
+      <h1>{{.Article.Title}}</h1>
+      <div class="rmeta">
+        <a href="/feed/{{.Article.FeedID}}">{{.Article.Name}}</a>
+        <span>{{timeformat .Article.PublishAt}}</span>
+        {{with getFeedCategory .Article.FeedID}}<a href="/category/{{.}}">[{{.}}]</a>{{end}}
+      </div>
+
       <div class="article-body">
         {{.Content | safeHTML}}
       </div>
+
+      <div class="rfoot">
+        {{if .Nav.Prev}}<a class="rnav" href="/article/{{.Nav.Prev.Uid}}/read?from={{.From}}" data-prev><span class="lbl">← Previous (k)</span><span class="t">{{.Nav.Prev.Title}}</span></a>{{end}}
+        {{if .Nav.Next}}<a class="rnav nx" href="/article/{{.Nav.Next.Uid}}/read?from={{.From}}" data-next><span class="lbl">Next (j) →</span><span class="t">{{.Nav.Next.Title}}</span></a>
+        {{else}}<span class="end">That's the last one. <a href="{{$back}}">Back to {{$backLabel}}</a></span>{{end}}
+      </div>
     </main>
+    </div>
   </body>
 </html>

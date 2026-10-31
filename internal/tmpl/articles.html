@@ -2,117 +2,123 @@
 <html lang="en">
   <head>
     {{template "head" .}}
-    <script>
-      function refreshFeed(feedId) {
-        fetch(`/feed/${feedId}/refresh`, { method: "POST" })
-          .then((response) => {
-            if (response.ok) {
-              location.reload();
-            } else {
-              console.error("Refresh failed");
-            }
-          })
-          .catch((error) => console.error("Error:", error));
-      }
-
-      function toggleStar(articleId) {
-        fetch(`/article/${articleId}/favorite`, { method: "POST" })
-          .then((response) => {
-            if (response.ok) location.reload();
-          })
-          .catch((error) => console.error("Error:", error));
-      }
-    </script>
   </head>
   <body>
+    <div class="wrap">
     {{template "nav" .}}
-    <h1>{{.Headline}}</h1>
+    {{$isFav := eq .Headline "Favorites"}}
+    {{$page := "list"}}{{if .IsHome}}{{$page = "home"}}{{else if $isFav}}{{$page = "favorites"}}{{else if .DisplayCheckbox}}{{$page = "feed"}}{{end}}
+    {{$from := "home"}}{{if $isFav}}{{$from = "favorites"}}{{end}}
 
-    {{if .DisplayHiddenToggle}}
-    <div class="form-container unread-toggle">
-      <form method="GET" action="/">
-        <label for="show_hidden">show-hidden</label>
-        <input type="checkbox" id="show_hidden" name="show_hidden" value="true" {{if .ShowHidden}}checked{{end}} onchange="this.form.submit()" />
-      </form>
+    <h1>{{.Headline}}<small id="list-count">{{len .Articles}}</small></h1>
+
+    {{if .DisplayCheckbox}}
+    <p class="sub">
+      <a href="{{.Feed.URL}}" target="_blank" rel="noopener">{{.Feed.URL}}</a> · fetched {{timeformat .LastFetchedAt}}
+    </p>
+    {{else if $isFav}}
+    <p class="sub">Kept until you unfav them.</p>
+    {{else if .IsCategory}}
+    <p class="sub">Unread articles in this category · <a href="/feed?category={{.Headline}}">manage feeds</a></p>
+    {{end}}
+
+    {{if not $isFav}}
+    <div class="toolbar">
+      {{if .IsHome}}
+      <div class="chips" role="group" aria-label="Filter articles">
+        <button type="button" class="chip active" data-filter="all" aria-pressed="true">All <span class="n">{{len .Articles}}</span></button>
+        <button type="button" class="chip" data-filter="fav" aria-pressed="false">★ Starred <span class="n"></span></button>
+        {{range $cat := .Categories}}
+        <button type="button" class="chip" data-filter="{{$cat.Name}}" aria-pressed="false"><span class="dot" style="background-color: {{$cat.Color}}"></span>{{$cat.Name}} <span class="n"></span></button>
+        {{end}}
+      </div>
+      {{end}}
+      {{if .DisplayCheckbox}}
+      <div class="chips">
+        <button type="button" class="btn sm" data-refresh="{{.FeedID}}" data-reload>↻ Refresh</button>
+        <button type="button" class="btn sm" data-toggle-panel="feed-panel" hidden>(+edit)</button>
+      </div>
+      {{end}}
+      <div class="right">
+        {{if .DisplayHiddenToggle}}
+        <form method="GET" action="/" class="inline">
+          <label class="check" for="show_hidden">
+            <input type="checkbox" id="show_hidden" name="show_hidden" value="true" {{if .ShowHidden}}checked{{end}} onchange="if(!window.rssy)this.form.submit()" />
+            Show hidden feeds <span class="n" id="hidden-count"></span>
+          </label>
+        </form>
+        {{end}}
+        <button type="button" class="btn sm" data-act="allread">✓ Mark <span class="lbl">all</span> read</button>
+        <span class="confirm" id="allread-confirm" hidden>
+          <span class="q">Mark all as read?</span>
+          <button type="button" class="btn sm primary" data-act="allyes">Yes</button>
+          <button type="button" class="btn sm" data-act="allno">Cancel</button>
+        </span>
+      </div>
     </div>
     {{end}}
 
-    {{if .DisplayRefresh}}
-    <div class="updatefeed-container">
-      <button class="refresh-button" onclick="refreshFeed({{.FeedID}});">(+refresh)</button>
-      {{if .DisplayCheckbox}}
-      <form method="POST" action="/feed/{{.FeedID}}/update" class="form-container">
-        <input type="submit" class="update-button" value="(+update)" />
-        <label for="hide_unread">hide-unread</label>
-        <input type="checkbox" id="hide_unread" name="hide_unread" value="true" {{if eq .CheckboxValues.hide_unread "true"}}checked{{end}} />
-        <label for="enable_readability">enable-readability</label>
-        <input type="checkbox" id="enable_readability" name="enable_readability" value="true" {{if eq .CheckboxValues.enable_readability "true"}}checked{{end}} />
-        <label for="highlight">highlight</label>
-        <input type="checkbox" id="highlight" name="highlight" value="true" {{if eq .CheckboxValues.highlight "true"}}checked{{end}} />
-        <label for="category">category</label>
-        <select id="category" name="category" class="category-select">
-          <option value="">Uncategorized</option>
+    {{if .DisplayCheckbox}}
+    <form method="POST" action="/feed/{{.FeedID}}/update" class="panel" id="feed-panel" data-feed-panel="{{.FeedID}}">
+      <label class="check" for="hide_unread"><input type="checkbox" id="hide_unread" name="hide_unread" value="true" {{if eq .CheckboxValues.hide_unread "true"}}checked{{end}} />Hide from Unreads</label>
+      <label class="check" for="enable_readability"><input type="checkbox" id="enable_readability" name="enable_readability" value="true" {{if eq .CheckboxValues.enable_readability "true"}}checked{{end}} />Readability</label>
+      <label class="check" for="highlight"><input type="checkbox" id="highlight" name="highlight" value="true" {{if eq .CheckboxValues.highlight "true"}}checked{{end}} />Highlight</label>
+      <label class="labeled" for="category">Category
+        <select id="category" name="category" class="select">
+          <option value="">None</option>
           {{range $cat := .Categories}}
           <option value="{{$cat.Name}}" {{if eq $.Feed.Categories $cat.Name}}selected{{end}}>{{$cat.Name}}</option>
           {{end}}
         </select>
-      </form>
-      {{end}}
-    </div>
-    <span class="refresh-info">Fetched at: {{timeformat .LastFetchedAt}}</span>
-    <hr />
-    {{else}}
-    <hr />
+      </label>
+      <input type="hidden" name="set_category" value="true" />
+      <button type="submit" class="btn sm panel-save">Save</button>
+    </form>
     {{end}}
+    <hr />
 
     {{$hideCreateBy := .HideCreateBy}}
-    {{$displayCheckbox := .DisplayCheckbox}}
+    {{$markHidden := or .IsHome .IsCategory}}
     {{$showHidden := .ShowHidden}}
     {{$lastCategory := ""}}
+    <div class="article-list" data-page="{{$page}}">
     {{range $idx, $article := .Articles}}
-    {{if or $displayCheckbox $showHidden (not (getFeedHideUnread $article.FeedID))}}
+    {{$hiddenFeed := and $markHidden (getFeedHideUnread $article.FeedID)}}
     {{$currentCategory := getTimeCategory $article.PublishAt}}
     {{if ne $currentCategory $lastCategory}}
     {{$lastCategory = $currentCategory}}
-    <div class="timeline-divider">
-      {{if eq $currentCategory "recent"}}最近 3 天{{else if eq $currentCategory "week"}}3-7 天{{else}}7 天前{{end}}
+    <div class="timeline-divider" data-group="{{$currentCategory}}">
+      {{if eq $currentCategory "recent"}}Last 3 days{{else if eq $currentCategory "week"}}3–7 days{{else}}Older{{end}}
+      <span class="n"></span>
     </div>
     {{end}}
-    <div class="article-item" id="article-{{$article.Uid}}">
-      {{if or $article.Favorite (getFeedHighlight $article.FeedID)}}★{{end}}
-      <a href="/article/{{$article.Uid}}" class="article-link" target="_blank">{{$article.Title}}</a>
+    {{$feedCat := getFeedCategory $article.FeedID}}
+    <div class="article-item{{if getFeedHighlight $article.FeedID}} hl{{end}}" id="article-{{$article.Uid}}"
+      data-uid="{{$article.Uid}}" data-cat="{{$feedCat}}" data-group="{{$currentCategory}}"
+      data-fav="{{if $article.Favorite}}1{{else}}0{{end}}" data-read="{{if $article.Read}}1{{else}}0{{end}}"
+      data-hidden="{{if $hiddenFeed}}1{{else}}0{{end}}" {{if and $hiddenFeed (not $showHidden)}}hidden{{end}}>
+      <span class="star" title="Favorite" {{if not $article.Favorite}}hidden{{end}}>★</span>
+      <a href="/article/{{$article.Uid}}" class="article-link" target="_blank" rel="noopener" data-act="title">{{$article.Title}}</a>
       {{if $hideCreateBy}}
       <span class="article-info">(at: {{timeformat $article.PublishAt}})</span>
       {{else}}
-      <span>(by:</span>
-      <a class="article-feed" href="/feed/{{$article.FeedID}}">{{$article.Name}}</a>,
-      <span class="article-info">at: {{timeformat $article.PublishAt}})</span>
+      <span class="article-info">(by: <a href="/feed/{{$article.FeedID}}">{{$article.Name}}</a>, at: {{timeformat $article.PublishAt}})</span>
       {{end}}
-      {{if getFeedCategory $article.FeedID}}
-      <a class="article-category" href="/category/{{getFeedCategory $article.FeedID}}">[{{getFeedCategory $article.FeedID}}]</a>
-      {{end}}
+      {{if $feedCat}}<a class="article-category" href="/category/{{$feedCat}}">[{{$feedCat}}]</a>{{end}}
       <span class="article-actions">
-        <button
-          type="button"
-          class="article-action-favorite"
-          onclick="toggleStar('{{$article.Uid}}')"
-          title="{{if $article.Favorite}}Unfavorite{{else}}Favorite{{end}}"
-        >{{if $article.Favorite}}(-f){{else}}(+f){{end}}</button>
-        {{if displayContentRead $article.Content}}
-        <a href="/article/{{$article.Uid}}/read" target="_blank" class="article-action-read">(+r)</a>
-        {{end}}
-        {{if enableReadabilityButton $article.FeedID}}
-        <a href="{{buildReadabilityURL $article.Link}}" target="_blank" class="article-action-read">(+r5)</a>
-        {{end}}
-        <a href="{{$article.Link}}" target="_blank" class="article-action-source">(+o)</a>
-        <a href="/article/{{$article.Uid}}/delete" class="article-action-delete">(-d)</a>
+        <form method="POST" action="/article/{{$article.Uid}}/favorite" class="inline"><button type="submit" data-act="fav" class="{{if $article.Favorite}}on{{end}}" title="Favorite (f)">{{if $article.Favorite}}(-fav){{else}}(+fav){{end}}</button></form>
+        {{if displayContentRead $article.Content}}<a href="/article/{{$article.Uid}}/read?from={{$from}}" data-act="read" title="Read here (enter)">(+read)</a>{{end}}
+        {{if enableReadabilityButton $article.FeedID}}<a href="{{buildReadabilityURL $article.Link}}" target="_blank" rel="noopener" data-act="open" title="Readability view">(+r5)</a>{{end}}
+        <a href="{{$article.Link}}" target="_blank" rel="noopener" data-act="open" title="Open original">(+orig)</a>
+        {{if not $article.Read}}<form method="POST" action="/article/{{$article.Uid}}/mark" class="inline"><input type="hidden" name="read" value="true" /><button type="submit" data-act="done" title="Mark read (e)">(done)</button></form>{{end}}
       </span>
     </div>
     {{end}}
-    {{end}}
+    </div>
 
-    {{if eq (len .Articles) 0}}
-    <p class="empty-state">No articles. All articles have been read.</p>
-    {{end}}
+    <p id="list-empty" class="empty" {{if .Articles}}hidden{{end}}>
+      {{if $isFav}}No favorites yet. Press f on any article to keep it here.{{else}}All caught up. New articles show up after the next fetch.{{end}}
+    </p>
+    </div>
   </body>
 </html>

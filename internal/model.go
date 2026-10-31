@@ -812,3 +812,103 @@ func getYesterdayHighlightedUnreadArticlesForUser(email string) ([]Article, erro
 
 	return articles, nil
 }
+
+// setArticleRead 标记文章已读/未读，用于列表页的 done 与撤销
+func setArticleRead(uid, email string, read bool) error {
+	err := globalDB.Model(&Article{}).Where("uid = ? AND email = ?", uid, email).Update("read", read).Error
+	if err != nil {
+		return fmt.Errorf("could not update read state: %v", err)
+	}
+	return nil
+}
+
+// setArticlesRead 批量标记，用于 "Mark all read" 与撤销
+func setArticlesRead(uids []string, email string, read bool) (int64, error) {
+	if len(uids) == 0 {
+		return 0, nil
+	}
+	res := globalDB.Model(&Article{}).Where("email = ? AND uid IN ?", email, uids).Update("read", read)
+	if res.Error != nil {
+		return 0, fmt.Errorf("could not update read state: %v", res.Error)
+	}
+	return res.RowsAffected, nil
+}
+
+func isArticleFavorite(uid, email string) bool {
+	var article Article
+	if err := globalDB.Select("favorite").Where("uid = ? AND email = ?", uid, email).First(&article).Error; err != nil {
+		return false
+	}
+	return article.Favorite
+}
+
+// ReaderNav 是阅读页的上一篇/下一篇信息
+type ReaderNav struct {
+	Prev  *Article
+	Next  *Article
+	Index int
+	Total int
+}
+
+// getReaderNav 按列表页的顺序找出当前文章的前后篇（只算有正文的文章）
+func getReaderNav(current Article, email, from string) ReaderNav {
+	articles := []Article{}
+	q := globalDB.Select("uid, title, feed_id, publish_at, content").Where("email = ?", email)
+	if from == "favorites" {
+		q = q.Where("favorite = ?", true)
+	} else {
+		q = q.Where("(read = false OR uid = ?)", current.Uid)
+	}
+	if err := q.Order("publish_at desc").Find(&articles).Error; err != nil {
+		return ReaderNav{}
+	}
+
+	list := make([]Article, 0, len(articles))
+	for _, a := range articles {
+		if a.Uid != current.Uid {
+			if len(a.Content) < 30 {
+				continue
+			}
+			if from != "favorites" && getFeedMetaWithCache(a.FeedID).HideUnread {
+				continue
+			}
+		}
+		a.Content = ""
+		list = append(list, a)
+	}
+
+	nav := ReaderNav{Total: len(list)}
+	for i := range list {
+		if list[i].Uid == current.Uid {
+			nav.Index = i + 1
+			if i > 0 {
+				nav.Prev = &list[i-1]
+			}
+			if i+1 < len(list) {
+				nav.Next = &list[i+1]
+			}
+			break
+		}
+	}
+	return nav
+}
+
+// getUnreadCounts 返回每个订阅的未读数
+func getUnreadCounts(email string) map[int64]int {
+	type row struct {
+		FeedID int64
+		N      int
+	}
+	rows := []row{}
+	counts := map[int64]int{}
+	err := globalDB.Model(&Article{}).Select("feed_id, count(*) as n").
+		Where("email = ? AND read = false", email).Group("feed_id").Scan(&rows).Error
+	if err != nil {
+		log.Infof("could not count unread: %v", err)
+		return counts
+	}
+	for _, r := range rows {
+		counts[r.FeedID] = r.N
+	}
+	return counts
+}
