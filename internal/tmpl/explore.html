@@ -35,11 +35,11 @@
       {{range .Items}}
       <div class="xitem">
         <div class="main">
-          <a href="{{.Link}}" target="_blank" rel="noopener">{{.Name}}</a><span class="ns">{{.NamespaceName}}</span>
+          <a class="name" href="/explore/preview?url={{.Link}}&name={{.Name}}&ns={{.NamespaceName}}&back={{$.Back}}" title="Preview items">{{.Name}}</a><span class="ns">{{.NamespaceName}}</span>
           {{if .RequiresSetup}}<span class="tag" title="Needs extra config on the RSSHub instance">needs config</span>{{end}}
           {{if .AntiCrawler}}<span class="tag" title="The source may block or rate-limit fetching">rate-limited</span>{{end}}
           {{if .Description}}<div class="desc">{{.Description}}</div>{{end}}
-          <div class="path">{{.Example}}</div>
+          <div class="path"><a href="{{.Link}}" target="_blank" rel="noopener" title="Raw feed">{{.Example}}</a></div>
         </div>
         {{if .Added}}
         <button type="button" class="btn sm" disabled>✓ Added</button>

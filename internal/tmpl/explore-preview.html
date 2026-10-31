@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    {{template "head" .}}
+  </head>
+  <body>
+    <div class="wrap">
+    {{template "nav" .}}
+    <p class="sub" style="margin: 1.25rem 0 0"><a href="{{.Back}}">← Explore</a></p>
+
+    <h1>{{if and .Preview .Preview.Title}}{{.Preview.Title}}{{else if .Name}}{{.Name}}{{else}}Preview{{end}}{{if .Preview}}<small>{{len .Preview.Items}} items</small>{{end}}</h1>
+    <p class="sub">
+      {{if .Namespace}}{{.Namespace}}{{if .Name}} · {{.Name}}{{end}} · {{end}}
+      {{if and .Preview .Preview.SiteLink}}<a href="{{.Preview.SiteLink}}" target="_blank" rel="noopener">site</a> · {{end}}
+      <a href="{{.FeedURL}}" target="_blank" rel="noopener">raw feed</a>
+    </p>
+    {{if and .Preview .Preview.Description}}<p class="preview-desc">{{.Preview.Description}}</p>{{end}}
+
+    {{if .Notice}}<div data-toast="{{.Notice}}" data-strip="added" hidden></div>{{end}}
+    {{if .ErrorMessage}}<div class="banner error">{{.ErrorMessage}}</div>{{end}}
+
+    <div class="toolbar">
+      <div class="chips">
+        {{if .Added}}
+        <a class="btn sm on" href="/feed/{{.FeedID}}">✓ Subscribed · open feed</a>
+        {{else if .Preview}}
+        <form class="explore-add inline" method="POST" action="/explore/add">
+          <input type="hidden" name="url" value="{{.FeedURL}}" />
+          <input type="hidden" name="name" value="{{.Name}}" />
+          <input type="hidden" name="back" value="{{.Self}}" />
+          <button type="submit" class="btn sm primary">+ Subscribe</button>
+        </form>
+        {{end}}
+        <a class="btn sm" href="{{.Self}}&refresh=true">↻ Reload</a>
+      </div>
+      {{if .Preview}}<div class="right"><span class="dim" style="font-size: 0.85em">Preview · fetched {{timeformat .Preview.FetchedAt}}</span></div>{{end}}
+    </div>
+    <hr />
+
+    {{if .Preview}}
+    <div class="preview-list">
+      {{range .Preview.Items}}
+      <div class="article-item">
+        {{if .Link}}<a href="{{.Link}}" class="article-link" target="_blank" rel="noopener">{{.Title}}</a>{{else}}<span class="article-link">{{.Title}}</span>{{end}}
+        <span class="article-info">({{if .Author}}by: {{.Author}}, {{end}}at: {{if .Published}}{{timeformat .Published}}{{else}}unknown{{end}})</span>
+        {{if .Snippet}}<div class="snippet">{{.Snippet}}</div>{{end}}
+      </div>
+      {{else}}
+      <p class="empty">This route returned no items right now.</p>
+      {{end}}
+    </div>
+    {{end}}
+    </div>
+  </body>
+</html>

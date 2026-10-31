@@ -320,3 +320,11 @@ a.chip:hover, button.chip:hover { border-color: var(--link); color: var(--link);
 }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 .timeline-divider .n:not(:empty)::before { content: "· "; }
+
+/* ---- explore preview ---- */
+.preview-desc { margin: -0.4rem 0 0.9rem; font-size: 0.95em; max-width: 680px; }
+.preview-list .article-item { padding: 0.45rem 0; }
+.snippet { color: var(--muted); font-size: 0.85em; line-height: 1.5; margin-top: 0.1rem; max-width: 680px; overflow-wrap: anywhere; }
+.xitem .name { font-size: 1.02em; }
+.xitem .path a { color: var(--muted); }
+.xitem .path a:hover { color: var(--link); }

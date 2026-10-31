@@ -653,6 +653,67 @@ func ServerRouter() *gin.Engine {
 		c.Redirect(http.StatusSeeOther, back+exploreJoin(back)+"added="+url.QueryEscape(name))
 	})
 
+	// 订阅前在 RSSy 里预览 RSSHub 路由的条目
+	r.GET("/explore/preview", checklogin, func(c *gin.Context) {
+		email := c.GetString("email")
+		if email == "" {
+			c.String(http.StatusBadRequest, "invalid request")
+			return
+		}
+
+		feedURL := strings.TrimSpace(c.Query("url"))
+		back := c.Query("back")
+		if !strings.HasPrefix(back, "/explore") || strings.HasPrefix(back, "/explore/preview") {
+			back = "/explore"
+		}
+
+		values := url.Values{}
+		values.Set("url", feedURL)
+		if name := c.Query("name"); name != "" {
+			values.Set("name", name)
+		}
+		if ns := c.Query("ns"); ns != "" {
+			values.Set("ns", ns)
+		}
+		values.Set("back", back)
+
+		page := ExplorePreviewPage{
+			SiteURL:   SiteURL,
+			FeedURL:   feedURL,
+			Name:      c.Query("name"),
+			Namespace: c.Query("ns"),
+			Back:      back,
+			Self:      "/explore/preview?" + values.Encode(),
+		}
+		if added := c.Query("added"); added != "" {
+			page.Notice = "Subscribed: " + added
+		}
+		if message := c.Query("error"); message != "" {
+			page.ErrorMessage = message
+		}
+
+		if !isExploreFeedURL(feedURL) {
+			page.ErrorMessage = "Only routes from " + exploreBaseURL() + " can be previewed."
+			c.HTML(http.StatusBadRequest, "explore-preview.html", page)
+			return
+		}
+
+		if id, ok := getSubscribedFeedURLs(email)[normalizeFeedURL(feedURL)]; ok {
+			page.Added = true
+			page.FeedID = id
+		}
+
+		preview, err := fetchExplorePreview(feedURL, c.Query("refresh") == "true")
+		if err != nil {
+			log.Errorf("preview explore feed %s: %v", feedURL, err)
+			if page.ErrorMessage == "" {
+				page.ErrorMessage = "RSSHub could not build this route right now. It may need extra config or be rate-limited. " + err.Error()
+			}
+		}
+		page.Preview = preview
+		c.HTML(http.StatusOK, "explore-preview.html", page)
+	})
+
 	r.POST("/explore/refresh", checklogin, func(c *gin.Context) {
 		forceRefreshExplore()
 		c.Redirect(http.StatusSeeOther, "/explore")
