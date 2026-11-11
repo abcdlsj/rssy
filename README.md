@@ -59,8 +59,34 @@ docker run -d --restart unless-stopped -e DB="rssy.db" -e SITE_URL="https://exam
 
 ## PNGs
 
+> 截图均使用演示数据。
+
+Unreads
+
 ![homepage unread](assets/homepage_unread.png)
+
+Feeds
+
 ![feeds list](assets/feeds_list.png)
+
+Feed articles
+
 ![feed post list](assets/feed_post_list.png)
+
+Reader
+
 ![feed post](assets/feed_post.png)
+
+Stream（桌面分栏 / 移动端标签）
+
 ![stream](assets/stream.png)
+
+<img src="assets/stream_mobile.png" alt="stream mobile" width="320">
+
+Explore
+
+![explore](assets/explore.png)
+
+Summary
+
+![ai summary](assets/ai_summary.png)
