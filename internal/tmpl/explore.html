@@ -9,7 +9,7 @@
   <body>
     <div class="wrap">
     {{template "nav" .}}
-    <h1>Explore<small>RSSHub{{if .RouteCount}} · {{.RouteCount}} routes · updated {{timeformat .UpdatedAt}}{{end}}</small></h1>
+    <h1>{{if .RouteCount}}{{.RouteCount}} routes{{else}}RSSHub routes{{end}}<small>RSSHub · updated {{timeformat .UpdatedAt}}</small></h1>
 
     {{if .Notice}}<div data-toast="{{.Notice}}" data-strip="added" hidden></div>{{end}}
     {{if .ErrorMessage}}<div class="banner error">{{.ErrorMessage}}</div>{{end}}

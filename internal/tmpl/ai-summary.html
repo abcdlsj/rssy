@@ -6,7 +6,7 @@
   <body>
     <div class="wrap">
     {{template "nav" .}}
-    <h1>Summary</h1>
+    <h1>{{len .Summaries}} digests</h1>
     <p class="sub">
       Daily AI digest of your unreads ·
       {{if and .Preference .Preference.EnableAISummary}}runs at {{.Preference.AISummaryTime}}{{else}}off{{end}} ·

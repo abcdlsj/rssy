@@ -547,10 +547,15 @@ func ServerRouter() *gin.Engine {
 		}
 
 		buzzingFeed := getBuzzingFeedEvery12Hours()
+		items := 0
+		for _, g := range buzzingFeed.Groups {
+			items += len(g.Items)
+		}
 
 		c.HTML(http.StatusOK, "stream.html", gin.H{
 			"SiteURL":       SiteURL,
 			"Groups":        buzzingFeed.Groups,
+			"ItemCount":     items,
 			"LastFetchTime": globalBuzzingFeedUpdatedAt.Unix(),
 		})
 	})

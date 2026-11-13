@@ -6,7 +6,7 @@
   <body>
     <div class="wrap">
     {{template "nav" .}}
-    <h1>Preferences</h1>
+    <h1>{{len .Categories}} categories</h1>
     <p class="sub">Categories save right away. Everything else applies after you save.</p>
     {{if .Message}}<div data-toast="{{.Message}}" data-strip="message" hidden></div>{{end}}
 

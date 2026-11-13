@@ -10,7 +10,7 @@
     {{$page := "list"}}{{if .IsHome}}{{$page = "home"}}{{else if $isFav}}{{$page = "favorites"}}{{else if .DisplayCheckbox}}{{$page = "feed"}}{{end}}
     {{$from := "home"}}{{if $isFav}}{{$from = "favorites"}}{{end}}
 
-    <h1>{{.Headline}}<small id="list-count">{{len .Articles}}</small></h1>
+    {{if $isFav}}<h1>{{len .Articles}} favorites</h1>{{else}}<h1>{{.Headline}}<small id="list-count">{{len .Articles}}</small></h1>{{end}}
 
     {{if .DisplayCheckbox}}
     <p class="sub">

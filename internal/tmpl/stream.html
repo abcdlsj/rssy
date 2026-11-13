@@ -6,7 +6,7 @@
   <body>
     <div class="wrap wide">
     {{template "nav" .}}
-    <h1>Stream</h1>
+    <h1>{{.ItemCount}} items<small>{{len .Groups}} groups · from buzzing.cc</small></h1>
     <p class="sub">From <a href="https://buzzing.cc/" target="_blank" rel="noopener">buzzing.cc</a> · fetched {{.LastFetchTime | timeformat}}</p>
 
     <div class="stream">

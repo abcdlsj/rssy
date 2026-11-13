@@ -6,7 +6,7 @@
   <body>
     <div class="wrap">
     {{template "nav" .}}
-    <h1>Feeds<small>{{len .AllFeeds}}</small></h1>
+    <h1>{{len .AllFeeds}} feeds<small>{{len .Categories}} categories</small></h1>
 
     <div class="addrow">
       <form method="POST" action="/feed/add" id="addForm">
