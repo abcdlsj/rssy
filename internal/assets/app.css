@@ -55,7 +55,7 @@ code, pre { font-family: var(--code); }
 .navbar .keys { margin-left: auto; color: var(--muted); font-size: 0.8em; white-space: nowrap; }
 .navbar .keys:hover { color: var(--link); }
 
-h1 { color: var(--strong); font-size: 2.6rem; line-height: 1.2; margin: 2rem 0 0.25rem; font-weight: 700; overflow-wrap: anywhere; }
+h1 { color: var(--strong); font-size: 2.6rem; line-height: 1.2; margin: 2rem 0 0.25rem; font-weight: 600; overflow-wrap: anywhere; }
 h1 small { font-size: 0.4em; font-weight: 400; color: var(--muted); margin-left: 0.5rem; }
 .sub { color: var(--muted); font-size: 0.9em; margin: 0 0 0.9rem; }
 .sub a { color: var(--link); }
